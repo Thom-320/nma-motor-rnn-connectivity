@@ -1,19 +1,24 @@
 ---
 name: Analysis task
-about: Proponer un cambio científico o técnico
-title: "[Analysis] "
-labels: analysis
+about: Propose a scientific, code, literature, or documentation task
+title: "[Task] "
+labels: needs-review
 assignees: ""
 ---
 
-## Pregunta
+## Scientific purpose
 
-## Cambio propuesto
+## Confirmatory or exploratory?
 
-## Métrica o figura afectada
+## Owner and reviewer
 
-## Archivos que se modificarán
+- Owner:
+- Reviewer:
 
-## Condición de terminado
+## Deliverable
 
-## ¿Confirmatorio o exploratorio?
+## Definition of done
+
+## Files likely to change
+
+## TA decision or blocker

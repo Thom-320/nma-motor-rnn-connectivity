@@ -11,6 +11,7 @@ from nma_motor_rnn.connectivity import (
     evaluate_fixed_decoder,
     make_shared_randomness,
     participation_ratio,
+    run_q1_baseline,
     train_condition,
     velocity_nmse,
 )
@@ -101,6 +102,15 @@ class EvaluationTests(unittest.TestCase):
             atol=0.0,
             rtol=0.0,
         )
+
+    def test_q1_baseline_has_exactly_fifty_trials(self):
+        trial_rows, checkpoints, summary = run_q1_baseline(
+            self.config, seed=8, p_value=0.10
+        )
+        self.assertEqual(len(trial_rows), 50)
+        self.assertEqual([row["trial"] for row in trial_rows], list(range(1, 51)))
+        self.assertEqual(summary["n_training_trials"], 50)
+        self.assertEqual(checkpoints[-1]["checkpoint_trial"], 50)
 
 
 if __name__ == "__main__":

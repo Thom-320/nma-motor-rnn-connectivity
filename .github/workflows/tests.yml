@@ -7,12 +7,31 @@ on:
 jobs:
   scientific-checks:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - python-version: "3.10"
+            dependency-set: minimum
+          - python-version: "3.11"
+            dependency-set: latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
+          python-version: ${{ matrix.python-version }}
           cache: pip
-      - run: python -m pip install -e .
+      - run: python -m pip install -e '.[dev]'
+      - name: Install declared minimum scientific dependencies
+        if: matrix.dependency-set == 'minimum'
+        run: >-
+          python -m pip install
+          numpy==1.24.4 pandas==2.0.3 matplotlib==3.7.5
       - run: python -m unittest discover -s tests -v
-      - run: python -m json.tool notebooks/02_q2_connectivity_experiment.ipynb > /dev/null
+      - run: python -m json.tool notebooks/Motor_RNN_Project.ipynb > /dev/null
+      - name: Execute canonical notebook in view mode
+        run: >-
+          python -m jupyter nbconvert
+          --to notebook
+          --execute notebooks/Motor_RNN_Project.ipynb
+          --output /tmp/Motor_RNN_Project.executed.ipynb
+          --ExecutePreprocessor.timeout=180

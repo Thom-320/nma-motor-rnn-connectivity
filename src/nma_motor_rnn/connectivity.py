@@ -303,6 +303,22 @@ def train_condition(
     p_value: float,
 ) -> tuple[list[dict[str, object]], dict[str, object]]:
     """Train one paired density condition and return checkpoint and summary rows."""
+    rows, summary, _ = _train_condition_with_history(
+        config, shared_randomness, p_value
+    )
+    return rows, summary
+
+
+def _train_condition_with_history(
+    config: ExperimentConfig,
+    shared_randomness: SharedRandomness,
+    p_value: float,
+) -> tuple[
+    list[dict[str, object]],
+    dict[str, object],
+    list[dict[str, object]],
+]:
+    """Train one condition and retain both checkpoints and trial-level loss."""
     stimuli, targets = create_reaching_task(config)
     network = MotorRNN(config, p_value, shared_randomness)
     test_trials = TestTrials(
@@ -312,6 +328,7 @@ def train_condition(
     metadata = _condition_metadata(network, shared_randomness.seed)
     rows: list[dict[str, object]] = []
     online_losses: list[float] = []
+    trial_history: list[dict[str, object]] = []
     checkpoint_trials = {0, config.n_training_trials}
     checkpoint_trials.update(range(config.eval_every, config.n_training_trials + 1, config.eval_every))
 
@@ -342,12 +359,26 @@ def train_condition(
             shared_randomness.train_initial_states[trial - 1],
         )
         online_losses.append(loss)
+        trial_history.append(
+            {
+                "seed": int(shared_randomness.seed),
+                "p_value": float(p_value),
+                "trial": int(trial),
+                "target_id": int(target_id),
+                "online_feedback_loss": float(loss),
+            }
+        )
         if trial in checkpoint_trials:
             record_checkpoint(trial)
 
     checkpoints = np.asarray([row["checkpoint_trial"] for row in rows], dtype=float)
     nmse_values = np.asarray([row["heldout_nmse"] for row in rows], dtype=float)
-    auc = float(np.trapezoid(nmse_values, checkpoints) / checkpoints[-1])
+    segment_areas = (
+        0.5
+        * (nmse_values[:-1] + nmse_values[1:])
+        * np.diff(checkpoints)
+    )
+    auc = float(segment_areas.sum() / checkpoints[-1])
     summary = {
         **metadata,
         "n_training_trials": config.n_training_trials,
@@ -359,7 +390,34 @@ def train_condition(
         "final_d_pr": float(rows[-1]["d_pr"]),
         "final_d90": int(rows[-1]["d90"]),
     }
-    return rows, summary
+    return rows, summary, trial_history
+
+
+def run_q1_baseline(
+    config: ExperimentConfig,
+    seed: int = 0,
+    p_value: float = 0.10,
+) -> tuple[
+    list[dict[str, object]],
+    list[dict[str, object]],
+    dict[str, object],
+]:
+    """Run the 50-trial Q1 baseline.
+
+    Returns trial-level online feedback loss, held-out checkpoint rows, and the
+    final condition summary. The supplied configuration provides all model
+    parameters; its training-trial count is set to 50 for the Q1 contract.
+    """
+    baseline_config = replace(
+        config,
+        n_training_trials=50,
+        p_values=(float(p_value),),
+    )
+    shared = make_shared_randomness(baseline_config, int(seed))
+    checkpoints, summary, trial_history = _train_condition_with_history(
+        baseline_config, shared, float(p_value)
+    )
+    return trial_history, checkpoints, summary
 
 
 def run_experiment(

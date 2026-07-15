@@ -1,18 +1,30 @@
-## Qué cambia
+## Linked issue
 
-Describe el cambio y los archivos principales.
+Closes #
 
-## Razón científica
+## What changed and why
 
-¿Corrige un bug, implementa el plan o añade un análisis exploratorio?
+Describe the focused change and its scientific purpose.
 
-## Verificación
+## Scientific status
 
-- [ ] Ejecuté `python3 -m unittest discover -s tests -v`.
-- [ ] El notebook principal sigue siendo JSON válido.
-- [ ] No añadí credenciales ni PDFs.
-- [ ] Documenté cualquier cambio en métricas, semillas o resultados.
+- [ ] Confirmatory: implements the frozen plan without changing it.
+- [ ] Exploratory: adds or changes an analysis after results were inspected.
+- [ ] Infrastructure/documentation only.
 
-## Impacto en resultados
+## Verification
 
-Indica si cambian tablas, figuras o límites de interpretación.
+- [ ] `python3 -m unittest discover -s tests -v`
+- [ ] Canonical notebook remains valid and executes in `view` mode.
+- [ ] No credentials, local paths, or publisher PDFs were added.
+- [ ] Any change to metrics, seeds, results, figures, or claims is documented below.
+
+## Result and claim impact
+
+State `None` or explain exactly what changed.
+
+## Reviewer checklist
+
+- [ ] The code matches the stated scientific purpose.
+- [ ] Confirmatory/exploratory status is accurate.
+- [ ] Results and interpretation stay within the documented claim boundary.

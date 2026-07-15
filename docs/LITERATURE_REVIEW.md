@@ -13,11 +13,9 @@
 
 Participation-ratio dimensionality and the number of PCs explaining 90% of activity variance will be reported without a directional hypothesis. Their relationship with performance is exploratory.
 
-## Two-person division
+## Team use
 
-- **Person 1:** Feulner and Clopath; Sussillo and Abbott; short Jaeger and Haas background entry; recurrent-learning code.
-- **Person 2:** Waernberg and Kumar; Gao et al.; held-out evaluation and PCA/manifold code.
-- **Together:** inspect paired-seed pilot results, revise the proposal in the group's own voice, and decide whether the final story is a density effect, diminishing returns, or a null result.
+The five core entries answer all six NMA reading fields explicitly. Assign papers according to the rotating literature role, but discuss every paper as a group before finalizing the proposal or abstract. Khona et al. is a bridge paper rather than direct evidence for the predicted density effect.
 
 ## Literature review
 
@@ -160,6 +158,22 @@ Neural dimensionality must be interpreted relative to task complexity and sampli
 Does sparse connectivity impose an additional circuit constraint below the task-dependent ceiling? Importantly, Gao et al. do not establish that higher dimensionality causes better task performance, so our dimension-performance relationship remains exploratory.
 
 Reference: [Gao et al., 2017 preprint](https://doi.org/10.1101/214262)
+
+### Bridge paper: Khona et al. (2023), *Winning the lottery with neural connectivity constraints*
+
+**1. Research question and hypothesis:** The authors asked whether biologically motivated spatial connectivity constraints could improve learning across cognitive tasks. They predicted that structured sparse connectivity could provide useful inductive biases.
+
+**2. Methods:** Spatially embedded recurrent networks were trained across cognitive task batteries and compared with dense or differently constrained architectures.
+
+**3. Results:** Sparse spatial constraints often improved training speed or efficiency, but the preferred architecture depended on task demands.
+
+**4. Significance:** The study shows that maximum density is not automatically optimal and motivates examining architecture-dependent learning.
+
+**5. Main message:** Connectivity constraints can function as inductive biases rather than merely reducing capacity.
+
+**6. Follow-up:** Does global random connection probability affect a Feulner-style motor RNN under paired variance-normalized initialization? Because the topology, tasks, and learning rules differ, this paper motivates the question but does not predict our result directly.
+
+Reference: [Khona et al., arXiv:2207.03523](https://arxiv.org/abs/2207.03523)
 
 ## Cross-paper synthesis
 

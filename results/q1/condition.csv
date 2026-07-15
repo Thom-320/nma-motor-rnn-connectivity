@@ -1,0 +1,2 @@
+seed,p_value,expected_in_degree,realized_degree_mean,realized_degree_min,realized_degree_max,synapse_count,plastic_weight_count,initial_spectral_radius,n_training_trials,final_heldout_nmse,final_heldout_raw_mse,learning_curve_auc,final_weight_change_fro,final_spectral_radius,final_d_pr,final_d90
+0,0.1,9.9,10.22,4,17,1022,1022,1.7989567664104926,50,0.8885106552917589,0.01777021310583518,1.0499569500224133,16.21891145786518,2.165082767202638,3.233308377176295,7
