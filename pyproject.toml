@@ -1,0 +1,21 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "nma-motor-rnn-connectivity"
+version = "0.1.0"
+description = "Paired-seed motor-RNN connectivity experiment for Neuromatch Academy"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+  "matplotlib>=3.7",
+  "numpy>=1.24",
+  "pandas>=2.0",
+]
+
+[project.optional-dependencies]
+dev = ["jupyter>=1.0"]
+
+[tool.setuptools.packages.find]
+where = ["src"]

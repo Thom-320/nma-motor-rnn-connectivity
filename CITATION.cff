@@ -1,0 +1,19 @@
+cff-version: 1.2.0
+message: "If you use this teaching project, cite the underlying Feulner and Clopath model and this repository."
+title: "NMA Motor-RNN Connectivity"
+type: software
+version: 0.1.0
+date-released: 2026-07-14
+license: BSD-3-Clause
+repository-code: "https://github.com/Thom-320/nma-motor-rnn-connectivity"
+preferred-citation:
+  type: article
+  title: "Neural manifold under plasticity in a goal driven learning behaviour"
+  authors:
+    - family-names: Feulner
+      given-names: Barbara
+    - family-names: Clopath
+      given-names: Claudia
+  journal: "PLOS Computational Biology"
+  year: 2021
+  doi: "10.1371/journal.pcbi.1008621"

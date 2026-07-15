@@ -1,0 +1,28 @@
+{
+  "n_units": 100,
+  "p_values": [
+    0.05,
+    0.1,
+    0.2,
+    0.4
+  ],
+  "g": 1.5,
+  "tau": 0.1,
+  "dt": 0.01,
+  "trial_duration": 2.0,
+  "pulse_duration": 0.2,
+  "n_targets": 6,
+  "target_max": 0.2,
+  "n_training_trials": 40,
+  "delta": 20.0,
+  "eval_every": 5,
+  "test_initial_states_per_target": 5,
+  "decoder_scale": 0.04,
+  "update_stride": 2,
+  "seeds": [
+    0,
+    1,
+    2
+  ],
+  "elapsed_seconds": 34.89235733300302
+}
