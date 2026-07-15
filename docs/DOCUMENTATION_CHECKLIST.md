@@ -35,6 +35,7 @@
 | Estado y límites de afirmación | `docs/PROJECT_STATUS.md` |
 | Guía diaria/sistema NMA | `docs/reference/NMA_PROJECT_GUIDE.md` |
 | Inventario bibliográfico | `literature/README.md` |
+| Manifest de PDFs verificados | `literature/PDF_MANIFEST.md` |
 | Referencias BibTeX | `literature/references.bib` |
 | Guía de trabajo grupal | `docs/COLLABORATION_GUIDE.md` |
 | Código y pruebas | `src/`, `tests/` |
