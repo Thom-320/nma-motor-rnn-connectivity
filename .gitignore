@@ -15,3 +15,4 @@ literature/pdfs/*.pdf
 /archive/
 /vendor/
 tmp/
+runtime_results/

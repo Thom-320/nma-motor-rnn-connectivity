@@ -1,8 +1,8 @@
-# Manifest de PDFs locales verificados
+# Verified local PDF manifest
 
-Este manifest permite comprobar que cada integrante está leyendo el mismo archivo sin publicar el texto completo. Los hashes son SHA-256.
+This manifest allows team members to confirm that they are reading the same file without publishing the full text. Hashes are SHA-256.
 
-| Archivo local | Páginas | SHA-256 |
+| Local filename | Pages | SHA-256 |
 |---|---:|---|
 | `feulner_clopath_2021_neural_manifold_plasticity.pdf` | 27 | `31327111832b332a04cf4bb41a8574bcc8c59ec29f594a255f30c472e70c3324` |
 | `gao_etal_2017_neural_task_complexity_biorxiv.pdf` | 50 | `ebb51d21d77f5fda4ebf9d06e1423fafd414bc429b3b0b21fdcf8aa67a5d8644` |
@@ -11,4 +11,4 @@ Este manifest permite comprobar que cada integrante está leyendo el mismo archi
 | `sussillo_abbott_2009_force_learning.pdf` | 14 | `755fa10e90a9e3589360b6699bc3b3f217343be73b78fefaab819a000e60c2a2` |
 | `waernberg_kumar_2019_low_dimensional_manifolds.pdf` | 23 | `7b62a027c31712fce8e05c4066dd47630f0cd67ef5cad2699d1dc49f22f4f11c` |
 
-La validación incluyó apertura/renderizado de la primera página, título/contenido y número de páginas. Los enlaces de acceso están en `literature/README.md`.
+Validation included opening/rendering the first page, checking title/content, and recording page count. Legal-access links are in `literature/README.md`.

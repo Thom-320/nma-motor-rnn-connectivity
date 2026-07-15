@@ -1,72 +1,63 @@
 # NMA Motor-RNN Connectivity
 
-Proyecto de Neuromatch Academy sobre cómo la probabilidad de conexión recurrente afecta el aprendizaje held-out de una tarea de alcance *center-out* de seis direcciones.
+[![scientific checks](https://github.com/Thom-320/nma-motor-rnn-connectivity/actions/workflows/tests.yml/badge.svg)](https://github.com/Thom-320/nma-motor-rnn-connectivity/actions/workflows/tests.yml)
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/Thom-320/nma-motor-rnn-connectivity/blob/main/notebooks/Motor_RNN_Project.ipynb)
 
-> **Pregunta principal:** bajo una inicialización normalizada por varianza y una regla fija de aprendizaje recurrente, ¿cómo afecta la probabilidad de conexión recurrente \(p\) al aprendizaje held-out?
+An English-first Neuromatch Academy project testing how recurrent connection probability affects held-out learning in a motor recurrent neural network.
 
-La dimensionalidad del manifold neural se analiza como explicación exploratoria, no como mecanismo confirmado.
+> **Primary question:** Under variance-normalized initialization and a fixed recurrent learning rule, how does recurrent connection probability \(p\) affect held-out learning of a six-direction center-out reaching task?
 
-## Estado actual
+The relationship between density, performance, and neural-manifold dimensionality is secondary and exploratory.
 
-- **Q1 — completada como reproducción:** el notebook original entrena la RNN y grafica la pérdida online. Esa curva no es por sí sola una medida held-out.
-- **Q2 — exploración histórica conservada:** la copia de trabajo ensayó varias densidades, pero mezclaba pérdida online, aleatoriedad no pareada y un decoder PCA reajustado.
-- **Q2 — experimento corregido completado:** usa un decoder motor fijo, evaluación sin aprendizaje, ensayos balanceados y ocho semillas pareadas.
+## Start here
 
-Resultado principal en \(N=200\): \(p=0.05\) tuvo mayor NMSE final que el promedio de \(p\in\{0.10,0.20,0.40\}\) en 8/8 semillas. La hipótesis de rendimientos decrecientes no recibió apoyo consistente. Véase [PROJECT_STATUS.md](docs/PROJECT_STATUS.md).
+1. Open the [guided project notebook](notebooks/Motor_RNN_Project.ipynb) or use the Colab badge above.
+2. Leave `RUN_MODE = "view"` to inspect Q1, Q2, the committed results, and all four figures immediately.
+3. Use `smoke` for a quick end-to-end run, `pilot` for the three-seed pilot, or `primary` only when intentionally reproducing the full experiment.
+4. Read [Team workflow](docs/TEAM_WORKFLOW.md) before making a contribution.
 
-## Mapa del repositorio
+## Current status
+
+- **Q1 is resolved as a baseline reproduction.** A 50-trial network at \(p=0.10\) produces both the original-style online feedback loss and a separate held-out velocity-error curve.
+- **Q2 is resolved for the current all-weights-plastic design.** The corrected experiment uses a fixed motor decoder, balanced held-out trials, nested density masks, and paired randomness across conditions.
+- In the \(N=200\), eight-seed experiment, the H1 low-density contrast was positive in 8/8 seeds. H2, the proposed diminishing-returns contrast, was positive in only 3/8 seeds and is not supported.
+- Manifold dimensionality decreased as performance improved. This is an exploratory association confounded with density, not a causal mechanism.
+
+![Primary held-out learning curves](results/primary/figures/figure1_heldout_nmse.png)
+
+The complete scientific assessment and claim boundary are in [Research overview](docs/RESEARCH_OVERVIEW.md).
+
+## Repository map
 
 ```text
-notebooks/
-  00_nma_original_motor_rnns.ipynb       # plantilla original / Q1
-  01_q1_q2_exploration.ipynb             # copia del equipo, archivo histórico
-  02_q2_connectivity_experiment.ipynb     # análisis reproducible actual
-src/nma_motor_rnn/connectivity.py         # modelo y análisis reutilizable
-tests/test_connectivity.py                # controles científicos y de reproducibilidad
-docs/                                     # estado, literatura y guías del equipo
-literature/                               # índice y BibTeX; PDFs locales ignorados por git
-results/pilot/                            # piloto N=100, 3 semillas
-results/primary/                          # experimento N=200, 8 semillas
+notebooks/Motor_RNN_Project.ipynb   canonical guided Colab notebook
+src/nma_motor_rnn/connectivity.py   reusable model and analysis code
+tests/                              scientific and result-integrity checks
+results/q1/                         50-trial Q1 baseline
+results/pilot/                      N=100, three-seed pilot
+results/primary/                    N=200, eight-seed primary experiment
+docs/                               research, literature, and team workflow
+literature/                         citations, DOI links, and PDF manifest
+notebooks/archive/                  source and historical notebooks
 ```
 
-El detalle de qué notebook usar está en [NOTEBOOK_MAP.md](docs/NOTEBOOK_MAP.md).
-
-## Abrir en Colab
-
-Cuando el repositorio remoto esté publicado, abre el notebook principal con:
-
-[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/Thom-320/nma-motor-rnn-connectivity/blob/main/notebooks/02_q2_connectivity_experiment.ipynb)
-
-Hasta entonces, puede ejecutarse localmente desde la raíz del repositorio. El notebook busca automáticamente el paquete en `src/`.
-
-## Instalación y verificación local
-
-Requiere Python 3.10 o superior.
+## Local setup
 
 ```bash
+git clone https://github.com/Thom-320/nma-motor-rnn-connectivity.git
+cd nma-motor-rnn-connectivity
 python3 -m venv .venv
 source .venv/bin/activate
 python3 -m pip install -e '.[dev]'
 python3 -m unittest discover -s tests -v
-python3 -m json.tool notebooks/02_q2_connectivity_experiment.ipynb > /dev/null
 ```
 
-## Trabajo colaborativo
+## Collaboration
 
-Cada integrante debe trabajar en una rama y abrir un Pull Request; no conviene editar directamente `main`. Las instrucciones completas, incluyendo Colab, están en [COLLABORATION_GUIDE.md](docs/COLLABORATION_GUIDE.md) y las reglas para contribuir en [CONTRIBUTING.md](CONTRIBUTING.md).
+Work from a labeled GitHub Issue, create a short branch, keep one scientific purpose per Pull Request, and request one peer review. CI must pass before merge. Exact commands are in [CONTRIBUTING.md](CONTRIBUTING.md).
 
-## Literatura y documentación
+The repository does not track publisher PDFs, credentials, runtime outputs, or machine-specific paths. See [Literature review](docs/LITERATURE_REVIEW.md), [source provenance](docs/RESEARCH_OVERVIEW.md#source-repositories), and [third-party attribution](THIRD_PARTY.md).
 
-- [Revisión de literatura y propuesta](docs/LITERATURE_REVIEW.md)
-- [Inventario de artículos y enlaces legales](literature/README.md)
-- [Checklist de entregables NMA](docs/DOCUMENTATION_CHECKLIST.md)
-- [Guía/sistema de proyecto NMA](docs/reference/NMA_PROJECT_GUIDE.md)
-- [Procedencia de repositorios y código](docs/PROVENANCE.md)
+## Interpretation boundary
 
-Los seis PDFs verificados están disponibles en `literature/pdfs/` en esta copia local, con nombres normalizados. Esa carpeta no se publica en GitHub; el repositorio comparte citas, DOI y enlaces abiertos.
-
-La copia local también conserva el código original en `vendor/`, pero GitHub enlazará al repositorio de sus autores en lugar de duplicarlo.
-
-## Límite de interpretación
-
-Todas las conexiones recurrentes existentes son plásticas. Por eso el resultado compara arquitecturas completas dependientes de la densidad y no separa densidad estructural del número de parámetros plásticos. Tampoco demuestra un umbral crítico ni que la dimensionalidad cause el cambio de desempeño.
+Every recurrent connection that exists is plastic. The current evidence therefore compares complete density-dependent architectures; it does not isolate structural density from plasticity budget, identify a critical density, or establish that manifold dimensionality causes performance differences.

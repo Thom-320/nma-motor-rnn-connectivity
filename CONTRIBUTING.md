@@ -1,51 +1,51 @@
 # Contributing
 
-Este repositorio está diseñado para que el equipo trabaje con GitHub y Colab sin sobrescribir el trabajo de otras personas.
+All repository communication is in English. Every change starts from a GitHub Issue and has one scientific purpose.
 
-## Flujo recomendado
+## 1. Claim an issue
 
-1. Sincroniza `main` y crea una rama corta:
+Comment on the issue, confirm the deliverable and reviewer, and note whether the work is confirmatory or exploratory. Do not change metrics, seeds, hypotheses, or inclusion rules after inspecting results without documenting that change as exploratory.
 
-   ```bash
-   git switch main
-   git pull --ff-only
-   git switch -c nombre/tarea-breve
-   ```
+## 2. Create a branch
 
-2. Haz un cambio acotado. Evita modificar el mismo notebook que otra persona al mismo tiempo.
-3. Ejecuta las pruebas:
+```bash
+git switch main
+git pull --ff-only
+git switch -c your-name/short-task
+```
 
-   ```bash
-   python3 -m unittest discover -s tests -v
-   python3 -m json.tool notebooks/02_q2_connectivity_experiment.ipynb > /dev/null
-   ```
+Only one person should edit the canonical notebook at a time. Put reusable logic in `src/nma_motor_rnn/`; the notebook should explain and orchestrate it.
 
-4. Revisa exactamente qué vas a guardar:
+## 3. Run checks
 
-   ```bash
-   git status
-   git diff --stat
-   ```
+```bash
+python3 -m pip install -e '.[dev]'
+python3 -m unittest discover -s tests -v
+python3 -m json.tool notebooks/Motor_RNN_Project.ipynb > /dev/null
+python3 -m jupyter nbconvert \
+  --to notebook --execute notebooks/Motor_RNN_Project.ipynb \
+  --output /tmp/Motor_RNN_Project.executed.ipynb \
+  --ExecutePreprocessor.timeout=180
+```
 
-5. Haz commit y publica la rama:
+## 4. Commit and open a Pull Request
 
-   ```bash
-   git add <archivos>
-   git commit -m "Describe brevemente el cambio"
-   git push -u origin HEAD
-   ```
+```bash
+git status
+git diff --check
+git add <specific-files>
+git commit -m "Describe the focused change"
+git push -u origin HEAD
+```
 
-6. Abre un Pull Request y pide revisión a la otra persona.
+The Pull Request must link its issue, identify scientific status, list checks, and state whether results or claim boundaries change. A different team member reviews it. Resolve all review conversations before merge.
 
-## Convenciones científicas
+## Scientific invariants
 
-- Una semilla de red es una réplica; los ensayos de una misma red no son réplicas independientes.
-- No reemplazar el decoder motor fijo por un decoder PCA reajustado para medir desempeño primario.
-- Separar siempre `online_feedback_loss` de `heldout_nmse`.
-- No cambiar hipótesis, semillas o métricas después de mirar resultados sin documentarlo como exploratorio.
-- No eliminar resultados nulos o contradictorios; el piloto \(N=100\) forma parte del registro.
-- No hacer commit de PDFs completos. Añadir DOI, URL y BibTeX a `literature/`.
-
-## Notebooks
-
-Los notebooks producen conflictos difíciles de resolver. Antes de editar uno, abre un issue o avisa al equipo. Al terminar, reinicia el runtime y ejecuta todas las celdas en orden. Los cambios reutilizables deben ir en `src/nma_motor_rnn/`; el notebook debe orquestarlos y explicarlos.
+- The independent replicate is the network seed, not a trial or time point.
+- Primary performance uses the original fixed motor decoder; PCA never replaces it.
+- Online feedback loss and held-out velocity NMSE remain separate.
+- Density conditions remain paired within seed.
+- Null, contradictory, and pilot results remain visible.
+- The primary claim applies only to architectures where all existing recurrent weights are plastic.
+- Never commit credentials, access tokens, publisher PDFs, or local absolute paths.
