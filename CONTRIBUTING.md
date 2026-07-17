@@ -10,6 +10,24 @@ Each work-block assignment must affect at least one part of the scientific proje
 
 The notebook is generated after the relevant PRs are reviewed. One person performs that mechanical step, while authorship remains visible in the protocol, code, tests, analyses, figures, and PR history.
 
+## How work is split
+
+Work is divided by scientific responsibility. Separate files and PRs make those contributions easier to review, but file ownership is not a substitute for scientific ownership.
+
+For the current control:
+
+| Responsibility | Main working area |
+|---|---|
+| Research question and protocol | Shared decision in Issue #6; recorded in `docs/CONTROL_PROTOCOL.md` |
+| Model conditions and execution | `src/nma_motor_rnn/connectivity.py`, `results/` |
+| Paired statistical analysis and figures | analysis and figure code, result tables, results paragraph |
+| Measurement validity | `tests/`, metadata audit, validity statement |
+| Integration and claim boundary | research overview, notebook builder, PR review |
+
+Do not edit `notebooks/*.ipynb` by hand. Change `scripts/build_notebook.py` and regenerate the notebook after its source, tests, analysis, and results are reviewed. If one branch depends on another, record that dependency in both Issues and rebase after the prerequisite merges.
+
+If one person is making the scientific decisions while others only run checks, stop and reassign scientific ownership before continuing.
+
 ## 1. Claim an issue
 
 Comment on the issue, confirm the deliverable and reviewer, and note whether the work is confirmatory or exploratory. Do not change metrics, seeds, hypotheses, or inclusion rules after inspecting results without documenting that change as exploratory.
