@@ -34,6 +34,7 @@ class ExperimentConfig:
     test_initial_states_per_target: int = 5
     decoder_scale: float = 0.04
     update_stride: int = 2
+    plastic_in_degree: int | None = None
 
     @property
     def n_steps(self) -> int:
@@ -52,6 +53,10 @@ class ExperimentConfig:
             raise ValueError("training trials and eval_every must be positive")
         if self.n_steps <= self.pulse_steps:
             raise ValueError("trial_duration must exceed pulse_duration")
+        if self.plastic_in_degree is not None and not (
+            1 <= self.plastic_in_degree < self.n_units
+        ):
+            raise ValueError("plastic_in_degree must lie in [1, n_units)")
 
 
 @dataclass(frozen=True)
@@ -147,7 +152,27 @@ class MotorRNN:
         self.W_in = shared.input_weights.copy()
         self.decoder = shared.decoder.copy()
         self.feedback = np.linalg.pinv(self.decoder)
-        self.plastic_indices = [np.flatnonzero(row) for row in self.mask]
+        if config.plastic_in_degree is None:
+            self.plastic_indices = [np.flatnonzero(row) for row in self.mask]
+        else:
+            self.plastic_indices = []
+            for neuron, row in enumerate(self.mask):
+                candidates = np.flatnonzero(row)
+                if candidates.size < config.plastic_in_degree:
+                    raise ValueError(
+                        "fixed plastic in-degree is infeasible: "
+                        f"neuron {neuron} has {candidates.size} structural inputs, "
+                        f"but plastic_in_degree={config.plastic_in_degree}"
+                    )
+                priority = np.argsort(
+                    shared.mask_uniform[neuron, candidates], kind="stable"
+                )
+                self.plastic_indices.append(
+                    np.sort(candidates[priority[: config.plastic_in_degree]])
+                )
+        self.plastic_mask = np.zeros_like(self.mask, dtype=bool)
+        for neuron, indices in enumerate(self.plastic_indices):
+            self.plastic_mask[neuron, indices] = True
         self.P = [
             np.eye(indices.size, dtype=float) / config.delta
             for indices in self.plastic_indices
@@ -284,6 +309,7 @@ def _spectral_radius(weights: np.ndarray) -> float:
 
 def _condition_metadata(network: MotorRNN, seed: int) -> dict[str, object]:
     degrees = network.mask.sum(axis=1)
+    plastic_degrees = network.plastic_mask.sum(axis=1)
     return {
         "seed": int(seed),
         "p_value": network.p_value,
@@ -293,6 +319,15 @@ def _condition_metadata(network: MotorRNN, seed: int) -> dict[str, object]:
         "realized_degree_max": int(degrees.max()),
         "synapse_count": int(network.mask.sum()),
         "plastic_weight_count": int(sum(x.size for x in network.plastic_indices)),
+        "plasticity_regime": (
+            "all_existing"
+            if network.config.plastic_in_degree is None
+            else "fixed_in_degree"
+        ),
+        "configured_plastic_in_degree": network.config.plastic_in_degree,
+        "realized_plastic_degree_mean": float(plastic_degrees.mean()),
+        "realized_plastic_degree_min": int(plastic_degrees.min()),
+        "realized_plastic_degree_max": int(plastic_degrees.max()),
         "initial_spectral_radius": _spectral_radius(network.W_initial),
     }
 
@@ -451,6 +486,114 @@ def run_experiment(
     return checkpoint_rows, summary_rows, elapsed
 
 
+def plasticity_control_contrasts(
+    summary_rows: Sequence[dict[str, object]],
+) -> list[dict[str, float]]:
+    """Compute paired density contrasts for all-plastic and fixed-budget regimes."""
+    p_values = sorted({float(row["p_value"]) for row in summary_rows})
+    if len(p_values) != 2:
+        raise ValueError("plasticity control requires exactly two density values")
+    low_p, high_p = p_values
+    by_seed: dict[int, dict[str, dict[float, float]]] = {}
+    for row in summary_rows:
+        seed = int(row["seed"])
+        regime = str(row["plasticity_regime"])
+        by_seed.setdefault(seed, {}).setdefault(regime, {})[float(row["p_value"])] = float(
+            row["final_heldout_nmse"]
+        )
+
+    contrasts: list[dict[str, float]] = []
+    required_regimes = {"all_existing", "fixed_in_degree"}
+    for seed, regimes in sorted(by_seed.items()):
+        missing_regimes = required_regimes.difference(regimes)
+        if missing_regimes:
+            raise ValueError(
+                f"seed {seed} is missing plasticity regimes: {sorted(missing_regimes)}"
+            )
+        for regime in required_regimes:
+            missing_p = {low_p, high_p}.difference(regimes[regime])
+            if missing_p:
+                raise ValueError(
+                    f"seed {seed}, regime {regime} is missing p values: {sorted(missing_p)}"
+                )
+        delta_all = regimes["all_existing"][low_p] - regimes["all_existing"][high_p]
+        delta_fixed = (
+            regimes["fixed_in_degree"][low_p]
+            - regimes["fixed_in_degree"][high_p]
+        )
+        contrasts.append(
+            {
+                "seed": float(seed),
+                "low_p": low_p,
+                "high_p": high_p,
+                "density_contrast_all": float(delta_all),
+                "density_contrast_fixed": float(delta_fixed),
+                "plasticity_budget_attenuation": float(delta_all - delta_fixed),
+            }
+        )
+    return contrasts
+
+
+def run_plasticity_control(
+    config: ExperimentConfig,
+    seeds: Iterable[int],
+    *,
+    p_values: tuple[float, float],
+    fixed_plastic_in_degree: int,
+    output_dir: str | Path | None = None,
+) -> tuple[
+    list[dict[str, object]],
+    list[dict[str, object]],
+    list[dict[str, float]],
+    float,
+]:
+    """Run the paired density-by-plasticity-budget control.
+
+    The all-existing and fixed-in-degree regimes are regenerated from identical
+    seed-level randomness.  In the fixed regime, the same lowest-priority
+    structural inputs are plastic at both densities, provided every neuron has
+    at least ``fixed_plastic_in_degree`` structural inputs.
+    """
+    if len(p_values) != 2 or not p_values[0] < p_values[1]:
+        raise ValueError("p_values must contain two increasing densities")
+    seeds = tuple(int(seed) for seed in seeds)
+    all_config = replace(
+        config,
+        p_values=tuple(float(p) for p in p_values),
+        plastic_in_degree=None,
+    )
+    fixed_config = replace(
+        all_config,
+        plastic_in_degree=int(fixed_plastic_in_degree),
+    )
+    all_checkpoints, all_summaries, all_elapsed = run_experiment(
+        all_config, seeds=seeds
+    )
+    fixed_checkpoints, fixed_summaries, fixed_elapsed = run_experiment(
+        fixed_config, seeds=seeds
+    )
+    checkpoint_rows = all_checkpoints + fixed_checkpoints
+    summary_rows = all_summaries + fixed_summaries
+    contrasts = plasticity_control_contrasts(summary_rows)
+    elapsed = all_elapsed + fixed_elapsed
+
+    if output_dir is not None:
+        output_path = Path(output_dir)
+        output_path.mkdir(parents=True, exist_ok=True)
+        write_rows_csv(output_path / "checkpoints.csv", checkpoint_rows)
+        write_rows_csv(output_path / "conditions.csv", summary_rows)
+        write_rows_csv(output_path / "contrasts.csv", contrasts)
+        payload = {
+            "base_config": asdict(config),
+            "p_values": list(p_values),
+            "fixed_plastic_in_degree": int(fixed_plastic_in_degree),
+            "seeds": list(seeds),
+            "elapsed_seconds": elapsed,
+        }
+        (output_path / "config.json").write_text(json.dumps(payload, indent=2) + "\n")
+    return checkpoint_rows, summary_rows, contrasts, elapsed
+
+
 def write_rows_csv(path: str | Path, rows: Sequence[dict[str, object]]) -> None:
     if not rows:
         raise ValueError("cannot write an empty results table")
@@ -577,9 +720,109 @@ def plot_required_figures(
     return saved
 
 
+def plot_plasticity_control_figure(
+    summary_rows: Sequence[dict[str, object]],
+    contrast_rows: Sequence[dict[str, float]],
+    output_dir: str | Path,
+) -> Path:
+    """Plot fixed-budget performance and the paired density contrasts."""
+    import matplotlib.pyplot as plt
+
+    output_path = Path(output_dir)
+    output_path.mkdir(parents=True, exist_ok=True)
+    p_values = sorted({float(row["p_value"]) for row in summary_rows})
+    regimes = ("all_existing", "fixed_in_degree")
+    labels = {
+        "all_existing": "All existing weights plastic",
+        "fixed_in_degree": "Fixed plastic in-degree",
+    }
+    colors = {"all_existing": "#4C78A8", "fixed_in_degree": "#F58518"}
+
+    fig, axes = plt.subplots(1, 2, figsize=(11, 4.5))
+    for regime in regimes:
+        selected = [
+            row for row in summary_rows if row["plasticity_regime"] == regime
+        ]
+        seeds = sorted({int(row["seed"]) for row in selected})
+        matrix = np.asarray(
+            [
+                [
+                    next(
+                        float(row["final_heldout_nmse"])
+                        for row in selected
+                        if int(row["seed"]) == seed
+                        and float(row["p_value"]) == p_value
+                    )
+                    for p_value in p_values
+                ]
+                for seed in seeds
+            ]
+        )
+        for curve in matrix:
+            axes[0].plot(p_values, curve, color=colors[regime], alpha=0.22)
+        mean = matrix.mean(axis=0)
+        sem = (
+            matrix.std(axis=0, ddof=1) / np.sqrt(matrix.shape[0])
+            if matrix.shape[0] > 1
+            else np.zeros_like(mean)
+        )
+        axes[0].errorbar(
+            p_values,
+            mean,
+            yerr=sem,
+            marker="o",
+            linewidth=2.2,
+            capsize=3,
+            color=colors[regime],
+            label=labels[regime],
+        )
+    axes[0].set(
+        xlabel="Connection probability p",
+        ylabel="Final held-out velocity NMSE",
+        title="Density effect by plasticity regime",
+        xticks=p_values,
+    )
+    axes[0].legend(frameon=False)
+    axes[0].grid(alpha=0.25)
+
+    x = np.asarray([0.0, 1.0])
+    for row in contrast_rows:
+        y = np.asarray(
+            [row["density_contrast_all"], row["density_contrast_fixed"]]
+        )
+        axes[1].plot(x, y, color="0.65", alpha=0.6, marker="o")
+    means = [
+        np.mean([row["density_contrast_all"] for row in contrast_rows]),
+        np.mean([row["density_contrast_fixed"] for row in contrast_rows]),
+    ]
+    axes[1].scatter(x, means, color="#D62728", marker="D", s=65, zorder=3)
+    axes[1].axhline(0.0, color="black", linewidth=1, linestyle="--")
+    axes[1].set(
+        xticks=x,
+        xticklabels=["All plastic", "Fixed budget"],
+        ylabel="Low-density minus high-density NMSE",
+        title="Paired density contrast",
+    )
+    axes[1].grid(axis="y", alpha=0.25)
+    fig.tight_layout()
+    path = output_path / "plasticity_control.png"
+    fig.savefig(path, dpi=180)
+    plt.close(fig)
+    return path
+
+
 def pilot_config() -> ExperimentConfig:
     return ExperimentConfig()
 
 
 def primary_config() -> ExperimentConfig:
     return replace(ExperimentConfig(), n_units=200, n_training_trials=60)
+
+
+def plasticity_control_config() -> ExperimentConfig:
+    """Return the primary-size base configuration for the control.
+
+    The density pair and plastic in-degree are required arguments to
+    :func:`run_plasticity_control` and must match the frozen protocol.
+    """
+    return primary_config()

@@ -11,7 +11,9 @@ from nma_motor_rnn.connectivity import (
     evaluate_fixed_decoder,
     make_shared_randomness,
     participation_ratio,
+    plasticity_control_contrasts,
     run_q1_baseline,
+    run_plasticity_control,
     train_condition,
     velocity_nmse,
 )
@@ -84,6 +86,81 @@ class EvaluationTests(unittest.TestCase):
         self.assertTrue(all(row["p_value"] == 0.2 for row in rows))
         self.assertEqual(summary["p_value"], 0.2)
         self.assertEqual(summary["synapse_count"], summary["plastic_weight_count"])
+
+    def test_fixed_plastic_in_degree_is_exact_and_paired(self):
+        config = ExperimentConfig(
+            n_units=24,
+            p_values=(0.5, 0.8),
+            plastic_in_degree=3,
+            n_training_trials=1,
+            eval_every=1,
+            test_initial_states_per_target=1,
+            trial_duration=0.3,
+            pulse_duration=0.1,
+        )
+        shared = make_shared_randomness(config, seed=8)
+        low = MotorRNN(config, 0.5, shared)
+        high = MotorRNN(config, 0.8, shared)
+        self.assertTrue(np.all(low.mask <= high.mask))
+        np.testing.assert_array_equal(low.plastic_mask, high.plastic_mask)
+        np.testing.assert_array_equal(
+            low.plastic_mask.sum(axis=1), np.full(config.n_units, 3)
+        )
+
+    def test_fixed_budget_updates_only_selected_weights(self):
+        config = ExperimentConfig(
+            n_units=24,
+            p_values=(0.5,),
+            plastic_in_degree=3,
+            n_training_trials=1,
+            eval_every=1,
+            test_initial_states_per_target=1,
+            trial_duration=0.3,
+            pulse_duration=0.1,
+        )
+        shared = make_shared_randomness(config, seed=8)
+        network = MotorRNN(config, 0.5, shared)
+        stimuli, targets = create_reaching_task(config)
+        before = network.W.copy()
+        network.train_trial(
+            stimuli[0], targets[0], shared.train_initial_states[0]
+        )
+        np.testing.assert_array_equal(
+            network.W[~network.plastic_mask], before[~network.plastic_mask]
+        )
+
+    def test_plasticity_control_is_paired_and_reproducible(self):
+        config = ExperimentConfig(
+            n_units=24,
+            n_training_trials=2,
+            eval_every=1,
+            test_initial_states_per_target=1,
+            trial_duration=0.3,
+            pulse_duration=0.1,
+        )
+        first = run_plasticity_control(
+            config,
+            seeds=(3,),
+            p_values=(0.5, 0.8),
+            fixed_plastic_in_degree=3,
+        )
+        second = run_plasticity_control(
+            config,
+            seeds=(3,),
+            p_values=(0.5, 0.8),
+            fixed_plastic_in_degree=3,
+        )
+        _, summaries_a, contrasts_a, _ = first
+        _, summaries_b, contrasts_b, _ = second
+        self.assertEqual(len(summaries_a), 4)
+        self.assertEqual(len(contrasts_a), 1)
+        self.assertEqual(contrasts_a, plasticity_control_contrasts(summaries_a))
+        for row_a, row_b in zip(summaries_a, summaries_b):
+            self.assertEqual(row_a["plasticity_regime"], row_b["plasticity_regime"])
+            self.assertAlmostEqual(
+                row_a["final_heldout_nmse"], row_b["final_heldout_nmse"], places=12
+            )
+        self.assertEqual(contrasts_a, contrasts_b)
 
     def test_smoke_run_is_reproducible(self):
         rows_a, summary_a = train_condition(self.config, self.shared, 0.2)
