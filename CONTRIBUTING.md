@@ -1,51 +1,15 @@
 # Contributing
 
-All repository communication is in English. Every change starts from a GitHub Issue and has one scientific purpose.
-
-## 1. Claim an issue
-
-Comment on the issue, confirm the deliverable and reviewer, and note whether the work is confirmatory or exploratory. Do not change metrics, seeds, hypotheses, or inclusion rules after inspecting results without documenting that change as exploratory.
-
-## 2. Create a branch
+Repository work is in English. Use only the current GitHub Issue and keep each change small.
 
 ```bash
 git switch main
 git pull --ff-only
 git switch -c your-name/short-task
-```
-
-Only one person should edit the canonical notebook at a time. Put reusable logic in `src/nma_motor_rnn/`; the notebook should explain and orchestrate it.
-
-## 3. Run checks
-
-```bash
 python3 -m pip install -e '.[dev]'
 python3 -m unittest discover -s tests -v
-python3 -m json.tool notebooks/Motor_RNN_Project.ipynb > /dev/null
-python3 -m jupyter nbconvert \
-  --to notebook --execute notebooks/Motor_RNN_Project.ipynb \
-  --output /tmp/Motor_RNN_Project.executed.ipynb \
-  --ExecutePreprocessor.timeout=180
 ```
 
-## 4. Commit and open a Pull Request
+Open one focused Pull Request, explain what changed and how it was checked, and request one teammate review.
 
-```bash
-git status
-git diff --check
-git add <specific-files>
-git commit -m "Describe the focused change"
-git push -u origin HEAD
-```
-
-The Pull Request must link its issue, identify scientific status, list checks, and state whether results or claim boundaries change. A different team member reviews it. Resolve all review conversations before merge.
-
-## Scientific invariants
-
-- The independent replicate is the network seed, not a trial or time point.
-- Primary performance uses the original fixed motor decoder; PCA never replaces it.
-- Online feedback loss and held-out velocity NMSE remain separate.
-- Density conditions remain paired within seed.
-- Null, contradictory, and pilot results remain visible.
-- The primary claim applies only to architectures where all existing recurrent weights are plastic.
-- Never commit credentials, access tokens, publisher PDFs, or local absolute paths.
+Do not change the question, metrics, seeds, results, or claims without a recorded team decision. Never commit credentials, publisher PDFs, or local paths.

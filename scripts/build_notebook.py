@@ -26,7 +26,7 @@ cells = [
     markdown(
         """# NMA Motor-RNN Connectivity Project
 
-**Primary question:** Under variance-normalized initialization and a fixed recurrent learning rule, how does recurrent connection probability $p$ affect held-out learning of a six-direction center-out reaching task?
+**Question:** When sparse and dense motor RNNs have the same number of trainable recurrent connections, does the difference in held-out reaching performance become smaller?
 
 **Exploratory question:** Are density-related performance differences accompanied by changes in task-evoked neural-manifold dimensionality?
 
@@ -188,7 +188,7 @@ The defensible conclusion concerns complete architectures in which every existin
 
 ## Team handoff
 
-Before starting work, read `README.md`, `docs/TEAM_WORKFLOW.md`, and `CONTRIBUTING.md`. Claim a GitHub Issue, create a short branch, keep the change focused, run the tests, and request one peer review. Record TA feedback and any post-result change as confirmatory or exploratory before implementation.
+Before starting work, read `README.md` and `CONTRIBUTING.md`. Use the current GitHub Issue, keep changes focused, run the tests, and request one peer review.
 """
     ),
 ]
