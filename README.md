@@ -13,11 +13,29 @@ We train a network to make reaching movements, then change how densely its neuro
 
 We're deciding whether to test that in [Issue #12](https://github.com/Thom-320/nma-motor-rnn-connectivity/issues/12).
 
-## Where we are
+## Q1 — can it learn at all?
 
-- **Q1** — the network learns the task. Done.
-- **Q2** — denser networks reach more accurately, in all eight seeds. Done.
-- What we can't say yet: whether that's the wiring itself, or just the extra trainable weights.
+![Q1 baseline](results/q1/figures/q1_baseline.png)
+
+Two panels, and the difference between them is the whole point.
+
+On the left is the **online loss** the network uses while it learns. It jumps around and never really settles. That's expected — the target changes every trial, the network starts somewhere new each time, and the weights move mid-trial. It tells you almost nothing about whether the network learned.
+
+On the right is the **held-out error**: fresh trials, learning switched off. That's the honest measure. It drops from about 1.0 to 0.87 over 50 trials. An NMSE of 1.0 means "no better than guessing the average", so this baseline barely gets off the ground — it's small ($N=100$) and sparse ($p=0.10$). It learns, but slowly.
+
+If you only ever look at one of these two panels, look at the right one.
+
+## Q2 — does density matter?
+
+![Q2 held-out error by density](results/primary/figures/figure1_heldout_nmse.png)
+
+Same task, bigger network ($N=200$), four connection densities, eight seeds each. The faint lines are individual seeds; the thick ones are the averages.
+
+Denser wins. The sparsest networks ($p=0.05$) flatten out around 0.42; the densest ($p=0.40$) get to 0.13. That held in **all eight seeds** — not a fluke of one lucky run.
+
+What we hoped to see but didn't: a plateau. We expected the gains to level off once the network was dense enough. They didn't, in only 3 of 8 seeds. So we're not claiming it.
+
+And the catch that drives the whole project: the denser networks also had **more connections free to change**. Density and trainable weights went up together, so this figure can't tell you which one earned the improvement.
 
 ## Start here
 
