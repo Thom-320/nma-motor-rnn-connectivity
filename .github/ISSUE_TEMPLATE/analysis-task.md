@@ -8,6 +8,10 @@ assignees: ""
 
 ## Scientific purpose
 
+## Scientific contribution
+
+What decision, model, analysis, validity assessment, interpretation, or communication will this task change? A reproduction or infrastructure task should also state which scientific conclusion it can support, revise, or block.
+
 ## Confirmatory or exploratory?
 
 ## Owner and reviewer
@@ -22,3 +26,7 @@ assignees: ""
 ## Files likely to change
 
 ## TA decision or blocker
+
+## Dependencies
+
+List any Issue or PR that must merge first. If this changes the research question or control protocol, link Issue #6 and obtain team approval before implementation.

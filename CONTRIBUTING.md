@@ -40,7 +40,7 @@ git pull --ff-only
 git switch -c your-name/short-task
 ```
 
-Only one person should edit the project notebook at a time. Put reusable logic in `src/nma_motor_rnn/`; the notebook should explain and orchestrate it.
+Put reusable logic in `src/nma_motor_rnn/` and notebook content in `scripts/build_notebook.py`. Regenerate the `.ipynb` only after the underlying changes are reviewed.
 
 ## 3. Run checks
 
