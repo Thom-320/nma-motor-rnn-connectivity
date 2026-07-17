@@ -1,4 +1,4 @@
-"""Build the canonical English project notebook from versioned cell sources."""
+"""Build the project notebook from versioned cell sources."""
 
 import json
 from pathlib import Path
@@ -26,11 +26,11 @@ cells = [
     markdown(
         """# NMA Motor-RNN Connectivity Project
 
-**Primary question:** Under variance-normalized initialization and a fixed recurrent learning rule, how does recurrent connection probability $p$ affect held-out learning of a six-direction center-out reaching task?
+**Primary question:** How much does controlling the recurrent plasticity budget reduce the held-out performance gap between sparse and dense motor RNNs?
 
 **Exploratory question:** Are density-related performance differences accompanied by changes in task-evoked neural-manifold dimensionality?
 
-This is the team's canonical notebook. It explains the resolved Q1 baseline and the paired-seed Q2 experiment. It loads committed results by default, so a new collaborator can understand the project immediately without spending Colab compute.
+This notebook explains the Q1 baseline and the completed all-existing-weights-plastic Q2 experiment. It loads committed results by default. The control pipeline can be tested in smoke mode, but its full design remains pending Project-TA review and no full control result is committed.
 """
     ),
     code(
@@ -70,9 +70,11 @@ from nma_motor_rnn.connectivity import (
     ExperimentConfig,
     hypothesis_contrasts,
     pilot_config,
+    plot_plasticity_control_figure,
     plot_required_figures,
     primary_config,
     run_experiment,
+    run_plasticity_control,
     run_q1_baseline,
 )
 """
@@ -86,15 +88,18 @@ Choose one mode and run all cells:
 - `smoke`: run a tiny end-to-end check in under a minute.
 - `pilot`: reproduce the $N=100$, three-seed pilot.
 - `primary`: reproduce the $N=200$, eight-seed primary experiment; this is intentionally opt-in.
+- `control_smoke`: test the fixed-plasticity pipeline with one tiny paired seed.
+
+The full control is disabled until `docs/CONTROL_PROTOCOL.md` records the Project-TA decision.
 
 Set `RUN_Q1=True` only when you want to regenerate the 50-trial baseline in memory.
 """
     ),
     code(
-        """RUN_MODE = "view"  # one of: view, smoke, pilot, primary
+        """RUN_MODE = os.environ.get("NMA_RUN_MODE", "view")  # edit default in Colab
 RUN_Q1 = False
 
-valid_modes = {"view", "smoke", "pilot", "primary"}
+valid_modes = {"view", "smoke", "pilot", "primary", "control_smoke"}
 if RUN_MODE not in valid_modes:
     raise ValueError(f"RUN_MODE must be one of {sorted(valid_modes)}")
 """
@@ -122,7 +127,7 @@ if RUN_Q1:
 """
     ),
     markdown(
-        """## Q2 — Recurrent connectivity and held-out learning
+        """## Preliminary Q2 — Recurrent connectivity and held-out learning
 
 Within each seed, density conditions share the underlying random weight matrix, nested masks, input weights, fixed decoder, target schedule, and initial states. Nonzero recurrent weights scale as $g/\\sqrt{pN}$. Evaluation occurs every five trials on 30 balanced held-out trials with learning disabled.
 
@@ -134,7 +139,7 @@ $D_{PR}$, $D_{90}$, and their association with performance are exploratory.
 """
     ),
     code(
-        """if RUN_MODE == "view":
+        """if RUN_MODE in {"view", "control_smoke"}:
     checkpoint_df = pd.read_csv("results/primary/checkpoints.csv")
     condition_df = pd.read_csv("results/primary/conditions.csv")
     contrast_df = pd.read_csv("results/primary/hypothesis_contrasts.csv")
@@ -180,13 +185,60 @@ for figure_path in figure_paths:
 """
     ),
     markdown(
-        """## Current result and interpretation boundary
+        """## Existing result and interpretation boundary
 
-In the preregistered $N=200$ experiment, H1 was positive in 8/8 paired seeds: very sparse $p=0.05$ networks had worse final held-out performance than the average moderate/higher-density network. H2 was positive in only 3/8 seeds and is not supported. Participation-ratio dimensionality decreased while performance improved; this association is exploratory and confounded with density.
+In the completed $N=200$ experiment, H1 was positive in 8/8 paired seeds: very sparse $p=0.05$ networks had worse final held-out performance than the average moderate/higher-density network. H2 was positive in only 3/8 seeds and is not supported. Participation-ratio dimensionality decreased while performance improved; this association is exploratory and confounded with density.
 
 The defensible conclusion concerns complete architectures in which every existing recurrent connection is plastic. It does **not** establish a critical density, diminishing returns, a causal manifold mechanism, or an effect independent of plasticity budget. The contradictory $N=100$ pilot remains part of the record.
 
-## Team handoff
+## Next experiment — Control the plasticity budget
+
+Because raising $p$ also raises the number of trainable recurrent weights, the completed Q2 cannot separate density from plasticity budget. For seed $s$, let $\\Delta^{all}_s$ be the low-minus-high-density NMSE gap in the all-plastic regime and $\\Delta^{fixed}_s$ the corresponding gap under the controlled-plasticity regime. The primary contrast is
+
+$$\\Psi_s=\\Delta^{all}_s-\\Delta^{fixed}_s.$$
+
+The hypothesis is $\\mathbb{E}[\\Psi_s]>0$: controlling plasticity attenuates the density gap. The residual $\\Delta^{fixed}$ is secondary, and an uncertain residual does not establish equivalence.
+
+The density conditions and plastic budget remain pending Project-TA approval. They must be recorded in `docs/CONTROL_PROTOCOL.md` before the full run. The cell below tests only the software path on a small synthetic configuration; it is not a scientific result.
+"""
+    ),
+    code(
+        """if RUN_MODE == "control_smoke":
+    control_config = ExperimentConfig(
+        n_units=24,
+        n_training_trials=4,
+        eval_every=2,
+        test_initial_states_per_target=1,
+        trial_duration=0.3,
+        pulse_duration=0.1,
+    )
+    control_seeds = range(1)
+    control_p_values = (0.50, 0.80)
+    fixed_plastic_in_degree = 3
+
+    control_output = Path("runtime_results") / RUN_MODE
+    control_checkpoints, control_conditions, control_contrasts, elapsed = (
+        run_plasticity_control(
+            control_config,
+            seeds=control_seeds,
+            p_values=control_p_values,
+            fixed_plastic_in_degree=fixed_plastic_in_degree,
+            output_dir=control_output,
+        )
+    )
+    control_figure = plot_plasticity_control_figure(
+        control_conditions, control_contrasts, control_output / "figures"
+    )
+    display(pd.DataFrame(control_conditions))
+    display(pd.DataFrame(control_contrasts))
+    display(Image(filename=str(control_figure)))
+    print(f"Control smoke test completed in {elapsed:.2f} seconds")
+else:
+    print("Control not run. Select control_smoke to test the software path.")
+"""
+    ),
+    markdown(
+        """## Team handoff
 
 Before starting work, read `README.md`, `docs/TEAM_WORKFLOW.md`, and `CONTRIBUTING.md`. Claim a GitHub Issue, create a short branch, keep the change focused, run the tests, and request one peer review. Record TA feedback and any post-result change as confirmatory or exploratory before implementation.
 """

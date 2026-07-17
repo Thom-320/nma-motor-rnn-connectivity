@@ -16,3 +16,4 @@ literature/pdfs/*.pdf
 /vendor/
 tmp/
 runtime_results/
+.idea/

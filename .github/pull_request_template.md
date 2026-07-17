@@ -15,7 +15,7 @@ Describe the focused change and its scientific purpose.
 ## Verification
 
 - [ ] `python3 -m unittest discover -s tests -v`
-- [ ] Canonical notebook remains valid and executes in `view` mode.
+- [ ] Project notebook remains valid and executes in `view` mode.
 - [ ] No credentials, local paths, or publisher PDFs were added.
 - [ ] Any change to metrics, seeds, results, figures, or claims is documented below.
 

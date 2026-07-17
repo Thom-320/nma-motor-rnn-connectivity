@@ -2,6 +2,14 @@
 
 All repository communication is in English. Every change starts from a GitHub Issue and has one scientific purpose.
 
+## Scientific ownership
+
+The research question, hypothesis, primary outcome, and claim boundary require approval from every team member. The coordinator records the decision but does not make it alone. Before a protocol is frozen, each member contributes a proposed question or design change, a falsifying observation, and a limitation.
+
+Each work-block assignment must affect at least one part of the scientific project: protocol, model conditions, analysis, measurement validity, interpretation, or communication. Running checks is valuable, but it is not a person's only contribution.
+
+The notebook is generated after the relevant PRs are reviewed. One person performs that mechanical step, while authorship remains visible in the protocol, code, tests, analyses, figures, and PR history.
+
 ## 1. Claim an issue
 
 Comment on the issue, confirm the deliverable and reviewer, and note whether the work is confirmatory or exploratory. Do not change metrics, seeds, hypotheses, or inclusion rules after inspecting results without documenting that change as exploratory.
@@ -14,7 +22,7 @@ git pull --ff-only
 git switch -c your-name/short-task
 ```
 
-Only one person should edit the canonical notebook at a time. Put reusable logic in `src/nma_motor_rnn/`; the notebook should explain and orchestrate it.
+Only one person should edit the project notebook at a time. Put reusable logic in `src/nma_motor_rnn/`; the notebook should explain and orchestrate it.
 
 ## 3. Run checks
 
@@ -47,5 +55,6 @@ The Pull Request must link its issue, identify scientific status, list checks, a
 - Online feedback loss and held-out velocity NMSE remain separate.
 - Density conditions remain paired within seed.
 - Null, contradictory, and pilot results remain visible.
-- The primary claim applies only to architectures where all existing recurrent weights are plastic.
+- The completed Q2 claim applies only to architectures where all existing recurrent weights are plastic.
+- The full control cannot start until all team members approve `docs/CONTROL_PROTOCOL.md`.
 - Never commit credentials, access tokens, publisher PDFs, or local absolute paths.
