@@ -3,11 +3,13 @@
 [![scientific checks](https://github.com/Thom-320/nma-motor-rnn-connectivity/actions/workflows/tests.yml/badge.svg)](https://github.com/Thom-320/nma-motor-rnn-connectivity/actions/workflows/tests.yml)
 [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/Thom-320/nma-motor-rnn-connectivity/blob/main/notebooks/Motor_RNN_Project.ipynb)
 
-An English-first Neuromatch Academy project testing how recurrent connection probability affects held-out learning in a motor recurrent neural network.
+This project studies how recurrent connectivity affects motor learning in an RNN.
 
-> **Primary question:** Under variance-normalized initialization and a fixed recurrent learning rule, how does recurrent connection probability \(p\) affect held-out learning of a six-direction center-out reaching task?
+## Research question
 
-The relationship between density, performance, and neural-manifold dimensionality is secondary and exploratory.
+> **When sparse and dense motor RNNs have the same number of trainable recurrent connections, does the difference in held-out reaching performance become smaller?**
+
+Q2 showed a performance difference between densities, but denser networks also had more trainable connections. This follow-up tests whether that difference reflects network density, plasticity budget, or both. Neural-manifold measurements remain exploratory.
 
 ## Start here
 
