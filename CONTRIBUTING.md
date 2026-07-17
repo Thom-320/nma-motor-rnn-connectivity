@@ -1,6 +1,6 @@
 # Contributing
 
-Repository work is in English. Use only the current GitHub Issue and keep each change small.
+Everything here is in English, so the whole team can read it. Work from the current Issue, and keep each change small enough that someone can review it in one sitting.
 
 ```bash
 git switch main
@@ -10,6 +10,6 @@ python3 -m pip install -e '.[dev]'
 python3 -m unittest discover -s tests -v
 ```
 
-Open one focused Pull Request, explain what changed and how it was checked, and request one teammate review.
+Open one Pull Request per idea. Say what changed, why, and how you checked it. Ask one teammate to look at it.
 
-Do not change the question, metrics, seeds, results, or claims without a recorded team decision. Never commit credentials, publisher PDFs, or local paths.
+A few things we don't change on our own: the question, the metrics, the seeds, the results, or what we claim they mean. Those need a team decision, written down in the Issue. And nothing secret goes in here — no credentials, no publisher PDFs, no paths from your laptop.

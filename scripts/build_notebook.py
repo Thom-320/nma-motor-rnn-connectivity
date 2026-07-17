@@ -26,11 +26,13 @@ cells = [
     markdown(
         """# NMA Motor-RNN Connectivity Project
 
-**Question:** When sparse and dense motor RNNs have the same number of trainable recurrent connections, does the difference in held-out reaching performance become smaller?
+We train a network to make reaching movements, then change how densely its neurons connect. Denser networks learned better — but they also had more connections free to change, so we can't yet tell which of the two did the work.
 
-**Exploratory question:** Are density-related performance differences accompanied by changes in task-evoked neural-manifold dimensionality?
+> **When sparse and dense networks have the same number of trainable connections, does the gap get smaller?**
 
-This is the team's canonical notebook. It explains the resolved Q1 baseline and the paired-seed Q2 experiment. It loads committed results by default, so a new collaborator can understand the project immediately without spending Colab compute.
+We also track how many dimensions the population activity spans. That one stays exploratory.
+
+This notebook loads the committed Q1 and Q2 results by default, so you can see what we have without spending Colab time.
 """
     ),
     code(

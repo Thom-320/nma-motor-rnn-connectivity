@@ -1,69 +1,72 @@
 # Research overview
 
-## Frozen questions
+## What we're asking
 
-**Primary:** Under variance-normalized initialization and a fixed recurrent learning rule, how does recurrent connection probability \(p\) affect held-out learning of a six-direction center-out reaching task?
+Denser networks learned to reach better than sparse ones. But raising the connection probability $p$ raises two things at once: how many connections exist, and how many the learning rule can change. So the result we have is about whole architectures, not about density on its own.
 
-**Exploratory:** Are density-related performance differences accompanied by changes in task-evoked neural-manifold dimensionality?
+> **When sparse and dense networks have the same number of trainable connections, does the gap get smaller?**
 
-## Source repositories
+The team is deciding in [Issue #12](https://github.com/Thom-320/nma-motor-rnn-connectivity/issues/12) whether to test this. Until then, Q2 below is what we have.
 
-- [babaf/neural-manifold-and-plasticity](https://github.com/babaf/neural-manifold-and-plasticity) is the original paper implementation associated with Feulner and Clopath. It provides scientific provenance and figure-level simulation scripts.
-- [steevelaquitaine/neural-manifold-and-plasticity](https://github.com/steevelaquitaine/neural-manifold-and-plasticity) is a lightly cleaned teaching fork that mainly adds setup support.
+We also track how many dimensions the population activity spans. That stays exploratory — we report it, we don't build a claim on it.
 
-Neither source repository is a complete student collaboration workspace. This project links to them, credits their licenses, and places the new paired experiment, tests, results, and documentation in a separate team repository.
+## What we built on
 
-## Relationship to the NMA project map
+- [babaf/neural-manifold-and-plasticity](https://github.com/babaf/neural-manifold-and-plasticity) — the original Feulner & Clopath implementation.
+- [steevelaquitaine/neural-manifold-and-plasticity](https://github.com/steevelaquitaine/neural-manifold-and-plasticity) — a lightly cleaned teaching fork.
 
-The Motor-RNN image proposes a natural sequence. Q1 trains the reaching RNN and inspects loss; Q2 varies connection density and compares reaching error. Our project follows exactly that Q1 → Q2 path. Q3–Q9—optimizing sparsity, graph metrics, force tasks, task complexity, context switching, and multitask learning—are explicitly outside the primary scope.
+Neither is a place four students can work in together, so we link to them and keep our experiment, tests and results here.
 
-The listed model/data databases (ModelDB, BioModels, Open Source Brain, CRCNS, INCF, and related resources) are useful discovery tools but are not project dependencies. This is a theory/simulation project with an existing published model, source code, and generated data. A new database search becomes necessary only if the team changes the model or adds external validation data.
+## Where this sits in the NMA template
 
-## Q1 assessment
+The Motor-RNN template walks from Q1 (train the network, look at the loss) to Q2 (vary density, compare reaching error). We did exactly that and stopped. Q3–Q9 — optimizing sparsity, graph metrics, force tasks, task complexity, multitask — are out of scope. Not because they're uninteresting, but because nine half-finished questions beat no one.
 
-Q1 is feasible and resolved as a baseline reproduction. The canonical run uses \(N=100\), \(p=0.10\), seed 0, and 50 training trials. It reports:
+## Q1 — does it learn?
 
-- trial-level online feedback-space loss, matching the spirit of the template question;
-- held-out velocity NMSE evaluated with a fixed decoder and no learning;
-- explicit separation of training diagnostics from generalization performance.
+Yes. The committed run is $N=100$, $p=0.10$, seed 0, 50 trials. It reports two things that are easy to confuse:
 
-The online curve need not decrease monotonically because targets and initial states vary and recurrent weights are updated during each trial. It is not sufficient evidence for a density effect.
+- the **online loss** the network uses while learning, and
+- the **held-out velocity NMSE**, measured on fresh trials with the fixed decoder and learning switched off.
 
-## Q2 design and feasibility
+The online curve doesn't fall smoothly, and it shouldn't: targets and starting states change every trial, and the weights move during the trial itself. It's a diagnostic, not a performance measure. Only the held-out number tells you whether the network actually learned.
 
-Q2 is feasible on free Colab and already completed under the current contract:
+## Q2 — does density matter?
 
-- \(p\in\{0.05,0.10,0.20,0.40\}\);
-- nested masks and shared random matrices within each seed;
-- nonzero weights scaled by \(g/\sqrt{pN}\);
-- shared input weights, fixed motor decoder, schedule, and initial states;
-- evaluation every five trials on 30 balanced held-out trials;
-- primary outcomes: final velocity NMSE and learning-curve area;
-- secondary outcomes: raw MSE, weight change, degree, synapse count, spectral radius, \(D_{PR}\), and \(D_{90}\).
+Runs fine on free Colab. What we fixed:
 
-The pilot used \(N=100\), three seeds, and 40 trials. The primary experiment used \(N=200\), eight seeds, and 60 trials.
+- $p \in \{0.05, 0.10, 0.20, 0.40\}$;
+- inside a seed, every condition shares the same underlying weights, nested masks, inputs, decoder, trial order and starting states;
+- non-zero weights scale as $g/\sqrt{pN}$, so total recurrent input stays comparable across densities;
+- evaluation every five trials, on 30 balanced held-out trials, with learning off;
+- main outcomes: final NMSE and learning-curve area. Everything else — weight change, degree, synapse count, spectral radius, $D_{PR}$, $D_{90}$ — is secondary.
+
+The pilot was $N=100$, three seeds, 40 trials. The main run was $N=200$, eight seeds, 60 trials.
+
+**The replicate is the network seed.** Fifty trajectories from one network are fifty looks at one network, not fifty networks.
 
 ## Results
 
-| p | Mean final NMSE | Mean AUC | Mean D_PR | Mean D90 |
+| p | Final NMSE | AUC | D_PR | D90 |
 |---:|---:|---:|---:|---:|
 | 0.05 | 0.424 | 0.655 | 3.528 | 10.125 |
 | 0.10 | 0.331 | 0.581 | 3.069 | 8.125 |
 | 0.20 | 0.276 | 0.422 | 2.651 | 4.125 |
 | 0.40 | 0.133 | 0.382 | 2.556 | 3.125 |
 
-H1 was positive in 8/8 primary seeds. The mean paired contrast was 0.177 with a seed-bootstrap 95% interval of [0.136, 0.219]. H2 was positive in 3/8 seeds; its mean contrast was 0.005 with interval [-0.081, 0.097], so diminishing returns are not supported.
+H1 held in 8/8 seeds — the sparsest networks did worst. Mean paired contrast 0.177, seed-bootstrap 95% interval [0.136, 0.219].
 
-Across the 32 primary conditions, final \(D_{PR}\) and final NMSE had descriptive Pearson \(r=0.671\): higher dimensionality accompanied worse performance. This is exploratory, confounded with density, and not causal. The contradictory \(N=100\) pilot remains visible and may indicate finite-size sensitivity.
+H2 — diminishing returns above some density — held in only 3/8 seeds. Mean contrast 0.005, interval [-0.081, 0.097]. Not supported.
 
-## Defensible conclusion
+Across the 32 conditions, $D_{PR}$ and final NMSE correlate at $r = 0.671$: the networks that spanned more dimensions did worse. That's a description, not a mechanism — dimensionality and density move together here, so we can't separate them. The $N=100$ pilot pointed the other way and stays in the record; it may just be a small-network effect.
 
-Under paired initialization, variance scaling, a fixed motor decoder, and an all-existing-weights-plastic recurrent learning rule, very sparse \(N=200\) networks performed worse than moderate/higher-density networks on held-out six-direction reaching.
+## What we can and can't say
 
-The experiment does not identify a critical density, support a performance plateau, isolate density from plasticity budget, or establish a causal manifold mechanism. Fixed-plasticity controls, task-complexity manipulations, BCI perturbations, graph metrics, and full \(N=800\) sweeps are future work.
+We can say: with paired initialization, variance scaling, a fixed decoder, and every existing connection free to learn, very sparse $N=200$ networks reached worse than denser ones.
 
-## Official NMA context
+We can't say: that there's a critical density, that returns plateau, that dimensionality causes the difference, or that any of it is about wiring rather than the number of trainable weights. That last one is the open question above.
 
-- [NMA project daily guide](https://compneuro.neuromatch.io/projects/docs/project_guidance.html)
-- [Behavior and Theory project guide](https://compneuro.neuromatch.io/projects/behavior_and_theory/README.html)
-- [Google Colab FAQ](https://research.google.com/colaboratory/faq.html)
+## NMA links
+
+- [Project daily guide](https://compneuro.neuromatch.io/projects/docs/project_guidance.html)
+- [Behavior and Theory guide](https://compneuro.neuromatch.io/projects/behavior_and_theory/README.html)
+- [Colab FAQ](https://research.google.com/colaboratory/faq.html)
