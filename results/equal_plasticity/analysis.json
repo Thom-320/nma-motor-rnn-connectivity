@@ -1,0 +1,15 @@
+{
+  "network_seed_count": 8,
+  "bootstrap_resamples": 200000,
+  "bootstrap_seed": 20260829,
+  "h1_mean": -0.08997724058522599,
+  "h2_mean": -0.02256900865790141,
+  "h1_contrast_bootstrap_95_percentile": [
+    -0.1126190533887293,
+    -0.06789611525740041
+  ],
+  "h2_contrast_bootstrap_95_percentile": [
+    -0.26939415267423494,
+    0.2017090098246065
+  ]
+}

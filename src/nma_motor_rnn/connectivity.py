@@ -73,6 +73,57 @@ class TestTrials:
     initial_states: np.ndarray
 
 
+def structural_mask(shared: SharedRandomness, p_value: float) -> np.ndarray:
+    """Return the nested structural mask for one connection probability."""
+    if not (0.0 < p_value <= 1.0):
+        raise ValueError("p_value must lie in (0, 1]")
+    mask = shared.mask_uniform < float(p_value)
+    np.fill_diagonal(mask, False)
+    return mask
+
+
+def make_equal_plasticity_masks(
+    shared: SharedRandomness,
+    p_values: Sequence[float],
+) -> dict[float, np.ndarray]:
+    """Build structural masks with one shared recurrent plasticity budget.
+
+    The structural masks remain nested: higher-density conditions retain more
+    recurrent edges.  Only a common subset of the lowest-priority edges is
+    trainable in every condition.  The priority is derived from the already
+    shared mask uniforms, so this control introduces no new random draws and
+    leaves the original experiment's random stream unchanged.
+
+    The smallest requested density determines the common budget.  With the
+    usual nested masks, this means that the sparse condition's trainable edges
+    are also trainable in every denser condition; the extra dense edges are
+    present but frozen.  This isolates a density change from the number of
+    recurrent weights available to the learning rule.
+    """
+    requested = tuple(float(p_value) for p_value in p_values)
+    if not requested or any(not (0.0 < p_value <= 1.0) for p_value in requested):
+        raise ValueError("p_values must be non-empty and lie in (0, 1]")
+
+    structural_masks = {
+        p_value: structural_mask(shared, p_value) for p_value in requested
+    }
+    budget = min(int(mask.sum()) for mask in structural_masks.values())
+    if budget < 1:
+        raise ValueError("equal plasticity control requires at least one edge")
+
+    priority = np.asarray(shared.mask_uniform, dtype=float).ravel()
+    equal_masks: dict[float, np.ndarray] = {}
+    for p_value, mask in structural_masks.items():
+        candidates = np.flatnonzero(mask.ravel())
+        order = np.argsort(priority[candidates], kind="stable")
+        selected = candidates[order[:budget]]
+        plastic = np.zeros_like(mask, dtype=bool).ravel()
+        plastic[selected] = True
+        equal_masks[p_value] = plastic.reshape(mask.shape)
+
+    return equal_masks
+
+
 def create_reaching_task(config: ExperimentConfig) -> tuple[np.ndarray, np.ndarray]:
     """Return one-hot cue stimuli and constant two-dimensional target velocities."""
     stimuli = np.zeros((config.n_targets, config.n_steps, config.n_targets), dtype=float)
@@ -130,13 +181,24 @@ class MotorRNN:
         config: ExperimentConfig,
         p_value: float,
         shared: SharedRandomness,
+        plastic_mask: np.ndarray | None = None,
     ) -> None:
         if not (0.0 < p_value <= 1.0):
             raise ValueError("p_value must lie in (0, 1]")
         self.config = config
         self.p_value = float(p_value)
-        self.mask = shared.mask_uniform < self.p_value
-        np.fill_diagonal(self.mask, False)
+        self.mask = structural_mask(shared, self.p_value)
+        if plastic_mask is None:
+            self.plastic_mask = self.mask.copy()
+        else:
+            plastic_mask = np.asarray(plastic_mask, dtype=bool)
+            if plastic_mask.shape != self.mask.shape:
+                raise ValueError("plastic_mask must match the recurrent weight shape")
+            if np.any(plastic_mask & ~self.mask):
+                raise ValueError("plastic_mask must be a subset of the structural mask")
+            if np.any(np.diag(plastic_mask)):
+                raise ValueError("self-connections cannot be plastic")
+            self.plastic_mask = plastic_mask.copy()
         self.W = (
             config.g
             / np.sqrt(self.p_value * config.n_units)
@@ -147,7 +209,7 @@ class MotorRNN:
         self.W_in = shared.input_weights.copy()
         self.decoder = shared.decoder.copy()
         self.feedback = np.linalg.pinv(self.decoder)
-        self.plastic_indices = [np.flatnonzero(row) for row in self.mask]
+        self.plastic_indices = [np.flatnonzero(row) for row in self.plastic_mask]
         self.P = [
             np.eye(indices.size, dtype=float) / config.delta
             for indices in self.plastic_indices
@@ -301,10 +363,11 @@ def train_condition(
     config: ExperimentConfig,
     shared_randomness: SharedRandomness,
     p_value: float,
+    plastic_mask: np.ndarray | None = None,
 ) -> tuple[list[dict[str, object]], dict[str, object]]:
     """Train one paired density condition and return checkpoint and summary rows."""
     rows, summary, _ = _train_condition_with_history(
-        config, shared_randomness, p_value
+        config, shared_randomness, p_value, plastic_mask=plastic_mask
     )
     return rows, summary
 
@@ -313,6 +376,7 @@ def _train_condition_with_history(
     config: ExperimentConfig,
     shared_randomness: SharedRandomness,
     p_value: float,
+    plastic_mask: np.ndarray | None = None,
 ) -> tuple[
     list[dict[str, object]],
     dict[str, object],
@@ -320,7 +384,12 @@ def _train_condition_with_history(
 ]:
     """Train one condition and retain both checkpoints and trial-level loss."""
     stimuli, targets = create_reaching_task(config)
-    network = MotorRNN(config, p_value, shared_randomness)
+    network = MotorRNN(
+        config,
+        p_value,
+        shared_randomness,
+        plastic_mask=plastic_mask,
+    )
     test_trials = TestTrials(
         target_indices=shared_randomness.test_target_indices,
         initial_states=shared_randomness.test_initial_states,
@@ -446,6 +515,49 @@ def run_experiment(
         payload = asdict(config)
         payload["p_values"] = list(config.p_values)
         payload["seeds"] = list(seeds)
+        payload["elapsed_seconds"] = elapsed
+        (output_path / "config.json").write_text(json.dumps(payload, indent=2) + "\n")
+    return checkpoint_rows, summary_rows, elapsed
+
+
+def run_equal_plasticity_experiment(
+    config: ExperimentConfig,
+    seeds: Iterable[int],
+    output_dir: str | Path | None = None,
+) -> tuple[list[dict[str, object]], list[dict[str, object]], float]:
+    """Run the density experiment while holding trainable-edge count fixed.
+
+    This is a follow-up control, separate from :func:`run_experiment`.  The
+    primary experiment remains unchanged and continues to represent the
+    all-existing-edges-plastic architecture.
+    """
+    config.validate()
+    start = time.perf_counter()
+    checkpoint_rows: list[dict[str, object]] = []
+    summary_rows: list[dict[str, object]] = []
+    seeds = tuple(int(seed) for seed in seeds)
+    for seed in seeds:
+        shared = make_shared_randomness(config, seed)
+        plastic_masks = make_equal_plasticity_masks(shared, config.p_values)
+        for p_value in config.p_values:
+            rows, summary = train_condition(
+                config,
+                shared,
+                p_value,
+                plastic_mask=plastic_masks[float(p_value)],
+            )
+            checkpoint_rows.extend(rows)
+            summary_rows.append(summary)
+    elapsed = time.perf_counter() - start
+    if output_dir is not None:
+        output_path = Path(output_dir)
+        output_path.mkdir(parents=True, exist_ok=True)
+        write_rows_csv(output_path / "checkpoints.csv", checkpoint_rows)
+        write_rows_csv(output_path / "conditions.csv", summary_rows)
+        payload = asdict(config)
+        payload["p_values"] = list(config.p_values)
+        payload["seeds"] = list(seeds)
+        payload["equal_plasticity_budget"] = True
         payload["elapsed_seconds"] = elapsed
         (output_path / "config.json").write_text(json.dumps(payload, indent=2) + "\n")
     return checkpoint_rows, summary_rows, elapsed

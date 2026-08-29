@@ -6,7 +6,13 @@ Denser networks learned to reach better than sparse ones. But raising the connec
 
 > **When sparse and dense networks have the same number of trainable connections, does the gap get smaller?**
 
-The team is deciding in [Issue #12](https://github.com/Thom-320/nma-motor-rnn-connectivity/issues/12) whether to test this. Until then, Q2 below is what we have.
+The committed Q2 result does not test this directly. A separate follow-up
+control is now implemented in
+[`run_equal_plasticity_experiment`](../src/nma_motor_rnn/connectivity.py): it
+keeps a common recurrent plasticity budget while retaining the density-specific
+structural masks. The control is deliberately separate from Q2 so that the
+original analysis and its claims remain unchanged until the team reviews the
+new run.
 
 We also track how many dimensions the population activity spans. That stays exploratory — we report it, we don't build a claim on it.
 
@@ -64,6 +70,31 @@ Across the 32 conditions, $D_{PR}$ and final NMSE correlate at $r = 0.671$: the 
 We can say: with paired initialization, variance scaling, a fixed decoder, and every existing connection free to learn, very sparse $N=200$ networks reached worse than denser ones.
 
 We can't say: that there's a critical density, that returns plateau, that dimensionality causes the difference, or that any of it is about wiring rather than the number of trainable weights. That last one is the open question above.
+
+## Equal-plasticity follow-up control
+
+The follow-up keeps the paired design from Q2: within each seed, conditions
+share the underlying random weights, input weights, decoder, target order and
+initial states. It changes one additional part of the design: every density
+condition receives the same number of trainable recurrent edges. The denser
+conditions still contain their extra structural edges, but those extra edges
+are frozen during recurrent learning.
+
+This is a control for the original confound, not a replacement for Q2. It asks
+whether the density contrast remains when the learning rule has the same number
+of recurrent degrees of freedom. It does not establish a universal causal
+effect of density, and it does not make the frozen dense edges biologically or
+algorithmically equivalent to trainable edges.
+
+Run the primary-sized follow-up with:
+
+```bash
+uv run python scripts/generate_equal_plasticity_control.py
+```
+
+The script writes its own checkpoints, condition summaries, hypothesis
+contrasts and figures under `results/equal_plasticity/`. The primary Q2 files
+under `results/primary/` are not overwritten.
 
 ## NMA links
 

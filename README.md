@@ -11,7 +11,11 @@ We train a network to make reaching movements, then change how densely its neuro
 
 > **When sparse and dense networks have the same number of trainable connections, does the gap get smaller?**
 
-We're deciding whether to test that in [Issue #12](https://github.com/Thom-320/nma-motor-rnn-connectivity/issues/12).
+The committed Q2 run does not separate density from the number of trainable
+recurrent weights. A follow-up control for that confound is implemented in
+[`run_equal_plasticity_experiment`](src/nma_motor_rnn/connectivity.py) and
+described below; it is kept separate from the primary result until the team
+reviews the analysis.
 
 ## Q1 — can it learn at all?
 
@@ -37,10 +41,27 @@ What we hoped to see but didn't: a plateau. We expected the gains to level off o
 
 And the catch that drives the whole project: the denser networks also had **more connections free to change**. Density and trainable weights went up together, so this figure can't tell you which one earned the improvement.
 
+## Follow-up — equal plasticity control
+
+We ran the same primary-sized experiment while giving every density the same
+number of trainable recurrent edges. The denser networks still contain their
+additional structural edges, but those edges are frozen during learning. In
+this control, the mean final held-out NMSE was 0.424 at $p=0.05$, 0.524 at
+$p=0.10$, 0.488 at $p=0.20$, and 0.530 at $p=0.40$ across eight seeds. The
+primary all-edges-plastic trend therefore did not reappear under this control;
+the result is descriptive and does not establish a universal causal effect of
+density.
+
+The full method, outputs and analysis boundary are in
+[the equal-plasticity control note](docs/EQUAL_PLASTICITY_CONTROL.md). The
+primary Q2 results above are unchanged.
+
 ## Start here
 
 1. Open the notebook with the Colab badge above.
 2. Leave `RUN_MODE = "view"` to look at the results without retraining. Use `smoke` if you want to check that everything runs.
-3. Pick something up in [Issue #12](https://github.com/Thom-320/nma-motor-rnn-connectivity/issues/12).
+3. Reproduce the equal-plasticity follow-up with
+   `uv run python scripts/generate_equal_plasticity_control.py` after reviewing
+   its analysis boundary in [the research overview](docs/RESEARCH_OVERVIEW.md).
 
 How we ran things, and what the results don't show: [research overview](docs/RESEARCH_OVERVIEW.md). The papers: [literature review](docs/LITERATURE_REVIEW.md). Before changing anything: [CONTRIBUTING.md](CONTRIBUTING.md).
