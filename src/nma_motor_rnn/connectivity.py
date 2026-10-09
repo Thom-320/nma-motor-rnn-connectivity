@@ -124,6 +124,65 @@ def make_equal_plasticity_masks(
     return equal_masks
 
 
+def initial_recurrent_weights(
+    config: ExperimentConfig,
+    shared: SharedRandomness,
+    p_value: float,
+) -> np.ndarray:
+    """Return the default variance-scaled recurrent matrix ``g/sqrt(pN) * G * M_p``."""
+    mask = structural_mask(shared, p_value)
+    return config.g / np.sqrt(float(p_value) * config.n_units) * shared.weight_normal * mask
+
+
+def spectral_radius(weights: np.ndarray) -> float:
+    return float(np.max(np.abs(np.linalg.eigvals(weights))))
+
+
+def gain_match_scale(weights: np.ndarray, reference_radius: float) -> float:
+    """Return the scalar that gives ``weights`` the requested spectral radius."""
+    radius = spectral_radius(weights)
+    if radius <= 0.0 or reference_radius <= 0.0:
+        raise ValueError("spectral radii must be positive for gain matching")
+    return float(reference_radius) / radius
+
+
+def frozen_drive_weights(
+    config: ExperimentConfig,
+    shared: SharedRandomness,
+    p_structural: float,
+    frozen_fraction: float,
+    p_plastic: float = 0.05,
+) -> tuple[np.ndarray, np.ndarray]:
+    """Build the R3 frozen-drive ablation network.
+
+    The trainable edges are always the nested ``p_plastic`` mask and the frozen
+    edges are the rest of the ``p_structural`` mask.  The total expected
+    recurrent input variance per unit stays ``g**2`` while a fraction
+    ``frozen_fraction`` of it is carried by the frozen edges:
+
+    ``W = g*sqrt(1-f)/sqrt(p_plastic*N) * G * M_plastic
+        + g*sqrt(f)/sqrt((p_structural-p_plastic)*N) * G * (M_structural - M_plastic)``.
+
+    With ``f = (p_structural - p_plastic) / p_structural`` this is exactly the
+    equal-plasticity control network at ``p_structural``; with ``f = 0`` it is
+    exactly the ``p_plastic`` network.  Holding ``f`` fixed while varying
+    ``p_structural`` changes only how many frozen edges carry the same frozen
+    drive; holding ``p_structural`` fixed while varying ``f`` changes only how
+    much of the drive is frozen.  Returns ``(initial_weights, plastic_mask)``.
+    """
+    if not (0.0 <= frozen_fraction < 1.0):
+        raise ValueError("frozen_fraction must lie in [0, 1)")
+    if not (0.0 < p_plastic < p_structural <= 1.0):
+        raise ValueError("require 0 < p_plastic < p_structural <= 1")
+    plastic = structural_mask(shared, p_plastic)
+    frozen = structural_mask(shared, p_structural) & ~plastic
+    n = config.n_units
+    plastic_scale = config.g * np.sqrt(1.0 - frozen_fraction) / np.sqrt(p_plastic * n)
+    frozen_scale = config.g * np.sqrt(frozen_fraction) / np.sqrt((p_structural - p_plastic) * n)
+    weights = shared.weight_normal * (plastic_scale * plastic + frozen_scale * frozen)
+    return weights, plastic
+
+
 def create_reaching_task(config: ExperimentConfig) -> tuple[np.ndarray, np.ndarray]:
     """Return one-hot cue stimuli and constant two-dimensional target velocities."""
     stimuli = np.zeros((config.n_targets, config.n_steps, config.n_targets), dtype=float)
@@ -173,6 +232,35 @@ def make_shared_randomness(config: ExperimentConfig, seed: int) -> SharedRandomn
     )
 
 
+def make_extended_shared_randomness(
+    config: ExperimentConfig,
+    seed: int,
+    base_trials: int,
+) -> SharedRandomness:
+    """Shared randomness for a longer run whose first trials match a shorter one.
+
+    Every quantity, including the first ``base_trials`` training trials and the
+    held-out test set, is drawn exactly as :func:`make_shared_randomness` draws
+    it for a ``base_trials``-trial run.  Additional trials come from a separate
+    stream seeded with ``[seed, 1]``, so a 200-trial run reproduces the 60-trial
+    primary run up to trial 60 and then continues.
+    """
+    if not (1 <= base_trials <= config.n_training_trials):
+        raise ValueError("base_trials must lie in [1, n_training_trials]")
+    base = make_shared_randomness(replace(config, n_training_trials=base_trials), seed)
+    extra = config.n_training_trials - base_trials
+    if extra == 0:
+        return base
+    rng = np.random.default_rng([int(seed), 1])
+    extra_order = _balanced_order(extra, config.n_targets, rng)
+    extra_states = rng.uniform(-1.0, 1.0, (extra, config.n_units))
+    return replace(
+        base,
+        train_order=np.concatenate([base.train_order, extra_order]),
+        train_initial_states=np.concatenate([base.train_initial_states, extra_states]),
+    )
+
+
 class MotorRNN:
     """Rate RNN with recurrent RLS updates following the NMA/Feulner notebook."""
 
@@ -182,6 +270,7 @@ class MotorRNN:
         p_value: float,
         shared: SharedRandomness,
         plastic_mask: np.ndarray | None = None,
+        initial_weights: np.ndarray | None = None,
     ) -> None:
         if not (0.0 < p_value <= 1.0):
             raise ValueError("p_value must lie in (0, 1]")
@@ -199,12 +288,15 @@ class MotorRNN:
             if np.any(np.diag(plastic_mask)):
                 raise ValueError("self-connections cannot be plastic")
             self.plastic_mask = plastic_mask.copy()
-        self.W = (
-            config.g
-            / np.sqrt(self.p_value * config.n_units)
-            * shared.weight_normal
-            * self.mask
-        )
+        if initial_weights is None:
+            self.W = initial_recurrent_weights(config, shared, self.p_value)
+        else:
+            initial_weights = np.asarray(initial_weights, dtype=float)
+            if initial_weights.shape != self.mask.shape:
+                raise ValueError("initial_weights must match the recurrent weight shape")
+            if np.any(initial_weights[~self.mask] != 0.0):
+                raise ValueError("initial_weights must be zero outside the structural mask")
+            self.W = initial_weights.copy()
         self.W_initial = self.W.copy()
         self.W_in = shared.input_weights.copy()
         self.decoder = shared.decoder.copy()
@@ -340,8 +432,7 @@ def evaluate_fixed_decoder(
     }
 
 
-def _spectral_radius(weights: np.ndarray) -> float:
-    return float(np.max(np.abs(np.linalg.eigvals(weights))))
+_spectral_radius = spectral_radius
 
 
 def _condition_metadata(network: MotorRNN, seed: int) -> dict[str, object]:
@@ -364,10 +455,15 @@ def train_condition(
     shared_randomness: SharedRandomness,
     p_value: float,
     plastic_mask: np.ndarray | None = None,
+    initial_weights: np.ndarray | None = None,
 ) -> tuple[list[dict[str, object]], dict[str, object]]:
     """Train one paired density condition and return checkpoint and summary rows."""
     rows, summary, _ = _train_condition_with_history(
-        config, shared_randomness, p_value, plastic_mask=plastic_mask
+        config,
+        shared_randomness,
+        p_value,
+        plastic_mask=plastic_mask,
+        initial_weights=initial_weights,
     )
     return rows, summary
 
@@ -377,6 +473,7 @@ def _train_condition_with_history(
     shared_randomness: SharedRandomness,
     p_value: float,
     plastic_mask: np.ndarray | None = None,
+    initial_weights: np.ndarray | None = None,
 ) -> tuple[
     list[dict[str, object]],
     dict[str, object],
@@ -389,6 +486,7 @@ def _train_condition_with_history(
         p_value,
         shared_randomness,
         plastic_mask=plastic_mask,
+        initial_weights=initial_weights,
     )
     test_trials = TestTrials(
         target_indices=shared_randomness.test_target_indices,
@@ -573,7 +671,14 @@ def write_rows_csv(path: str | Path, rows: Sequence[dict[str, object]]) -> None:
 
 
 def hypothesis_contrasts(summary_rows: Sequence[dict[str, object]]) -> list[dict[str, float]]:
-    """Return seed-level preregistered H1 and H2 contrasts; positive supports each hypothesis."""
+    """Return seed-level H1 and H2 contrasts; positive supports each hypothesis.
+
+    H1 = NMSE(0.05) - mean(NMSE(0.10, 0.20, 0.40)); H2 = (NMSE(0.05) -
+    NMSE(0.20)) - (NMSE(0.20) - NMSE(0.40)).  These contrasts are exploratory,
+    not preregistered: they were first committed together with the primary
+    results in 3021081 (14 Jul 2026) and were specified before the
+    equal-plasticity control was run (920ff92, 29 Aug 2026).
+    """
     by_seed: dict[int, dict[float, float]] = {}
     for row in summary_rows:
         by_seed.setdefault(int(row["seed"]), {})[float(row["p_value"])] = float(
