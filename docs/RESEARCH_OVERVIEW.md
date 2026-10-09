@@ -59,6 +59,13 @@ The pilot was $N=100$, three seeds, 40 trials. The main run was $N=200$, eight s
 | 0.20 | 0.276 | 0.422 | 2.651 | 4.125 |
 | 0.40 | 0.133 | 0.382 | 2.556 | 3.125 |
 
+**Status of the hypotheses.** H1 and H2 are exploratory contrasts. They were
+first committed together with the primary results in `3021081` (14 Jul 2026);
+an early project document from that commit called them "Confirmatory
+hypotheses" and the primary status note called the run "preregistered", but
+the git history does not support either word. They were, however, fixed before
+the equal-plasticity control was run (`920ff92`, 29 Aug 2026).
+
 H1 held in 8/8 seeds — the sparsest networks did worst. Mean paired contrast 0.177, seed-bootstrap 95% interval [0.136, 0.219].
 
 H2 — diminishing returns above some density — held in only 3/8 seeds. Mean contrast 0.005, interval [-0.081, 0.097]. Not supported.
@@ -95,6 +102,17 @@ uv run python scripts/generate_equal_plasticity_control.py
 The script writes its own checkpoints, condition summaries, hypothesis
 contrasts and figures under `results/equal_plasticity/`. The primary Q2 files
 under `results/primary/` are not overwritten.
+
+## Robustness checks (October 2026)
+
+R1–R5 (200 training trials, spectral-radius matching, a frozen-drive
+factorial, $N \in \{100, 200, 400\}$, 16 seeds) are in
+[`CLOUD-SESSION-2026-10.md`](CLOUD-SESSION-2026-10.md) and written up in
+[`paper/NOTE.md`](../paper/NOTE.md). In short: the all-edges-trainable
+advantage and its removal under an equal trainable budget are robust (16/16
+seeds); the *reversal* under the equal budget is roughly half as large with 16
+seeds as with 8, and a factorial ablation attributes it to the frozen
+recurrent drive the control introduces rather than to density.
 
 ## NMA links
 

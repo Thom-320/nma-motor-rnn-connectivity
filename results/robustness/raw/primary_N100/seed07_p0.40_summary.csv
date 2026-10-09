@@ -1,0 +1,2 @@
+arm,n_units,condition,frozen_fraction,gain_scale,seed,p_value,expected_in_degree,realized_degree_mean,realized_degree_min,realized_degree_max,synapse_count,plastic_weight_count,initial_spectral_radius,n_training_trials,final_heldout_nmse,final_heldout_raw_mse,learning_curve_auc,final_weight_change_fro,final_spectral_radius,final_d_pr,final_d90,elapsed_seconds
+primary,100,p0.40,nan,1.0,7,0.4,39.6,40.09,27,53,4009,4009,1.6649919325742368,200,0.4932902594032392,0.009865805188064784,0.7344097519862204,29.88261134334667,3.067392224753284,3.080520536573333,8,29.074057737999738

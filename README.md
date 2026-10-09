@@ -14,7 +14,7 @@ Feulner/Clopath implementation and teaching fork credited in the
 
 - **Design:** four densities, eight paired network seeds and held-out evaluation with learning disabled.
 - **Primary result:** denser, all-edges-plastic networks performed better in this experiment.
-- **Control:** with an equal number of trainable recurrent edges the sign *reverses*: the sparsest networks do best (H1 −0.090, 95 % CI [−0.113, −0.068], negative in 8/8 seeds, versus +0.177 [0.136, 0.220], positive in 8/8, when all edges are trainable). Read the [method and results](docs/EQUAL_PLASTICITY_CONTROL.md) and the [robustness checks](docs/CLOUD-SESSION-2026-10.md) before interpreting density as the cause.
+- **Control:** with an equal number of trainable recurrent edges the advantage is gone and, in the original eight seeds, the sign *reversed*: the sparsest networks did best (H1 −0.090, 95 % CI [−0.113, −0.068], negative in 8/8 seeds, versus +0.177 [0.136, 0.220], positive in 8/8, when all edges are trainable). With 16 seeds the reversal is about half that size; see the robustness checks below. Read the [method and results](docs/EQUAL_PLASTICITY_CONTROL.md) and the [robustness checks](docs/CLOUD-SESSION-2026-10.md) before interpreting density as the cause.
 - **Inspect without retraining:** open the notebook in `view` mode. The primary result and follow-up remain separate, and neither establishes a universal biological effect.
 
 ## The question
@@ -74,6 +74,31 @@ preregistered.
 The full method, outputs and analysis boundary are in
 [the equal-plasticity control note](docs/EQUAL_PLASTICITY_CONTROL.md). The
 primary Q2 results above are unchanged.
+
+## Robustness checks (October 2026)
+
+Before writing this up we stress-tested the result: 200 training trials,
+initial spectral radius matched across densities, a factorial that separates
+frozen recurrent drive from density, $N \in \{100, 200, 400\}$ and 16 seeds.
+Full numbers: [cloud-session record](docs/CLOUD-SESSION-2026-10.md); write-up
+draft: [paper/NOTE.md](paper/NOTE.md).
+
+- **Robust:** with all edges trainable, denser is better at $N=200$
+  (16/16 seeds, H1 +0.190 [0.154, 0.229]); an equal trainable budget removes
+  that advantage (paired change +0.231 [0.193, 0.267], 16/16), at every
+  checkpoint up to 200 trials and with gain matching.
+- **Fragile:** the sign *reversal* under the equal budget. With 16 seeds it is
+  −0.041 [−0.083, +0.011] at trial 60 and −0.055 [−0.100, −0.011] at trial 200;
+  with matched spectral radii it is not distinguishable from zero at trial 200.
+- **Mechanism:** at a fixed share of frozen recurrent drive, density has no
+  detectable effect; the residual reversal comes from the frozen edges the
+  control introduces, not from density.
+- **Size:** the same pattern holds at $N=400$ (8/8 seeds; smaller absolute
+  contrasts because these networks learn the task almost fully). At $N=100$
+  the networks barely learn, and the all-trainable advantage is not
+  significant, consistent with the earlier small pilot.
+
+![Robustness: H1 over training](results/robustness/figures/R1_convergence.png)
 
 ## Start here
 

@@ -54,6 +54,17 @@ that sparsity is better. They show that the primary all-edges-plastic result
 cannot be interpreted as a density-only effect: changing the plasticity
 budget changes the conclusion in this implementation.
 
+### Update after the October 2026 robustness checks
+
+With 16 seeds instead of 8, the equal-budget H1 at trial 60 is $-0.041$
+(95 % CI $[-0.083, +0.011]$, 13/16 seeds negative), and $-0.055$
+$[-0.100, -0.011]$ after 200 training trials. The direction holds but the
+8-seed estimate above overstated its size. The primary-minus-control change
+(+0.231 $[0.193, 0.267]$, 16/16) is the robust result. A frozen-drive
+factorial finds no density effect at a fixed share of frozen recurrent drive;
+the residual reversal tracks the presence of frozen edges. Details:
+[`CLOUD-SESSION-2026-10.md`](CLOUD-SESSION-2026-10.md).
+
 ## Reproduce
 
 From the repository root:

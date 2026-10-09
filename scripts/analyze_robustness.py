@@ -43,7 +43,10 @@ INK, MUTED, GRID = "#0b0b0b", "#52514e", "#e4e3df"
 
 
 # ---------------------------------------------------------------- statistics
-def bootstrap_ci(values: np.ndarray, rng: np.random.Generator) -> tuple[float, float]:
+def bootstrap_ci(values: np.ndarray, rng: np.random.Generator | None = None) -> tuple[float, float]:
+    """Percentile CI of the mean.  A fresh generator per call keeps every
+    interval independent of how many other contrasts were computed first."""
+    rng = np.random.default_rng(BOOTSTRAP_SEED)
     values = np.asarray(values, dtype=float)
     if values.size < 2:
         return (float("nan"), float("nan"))
@@ -325,6 +328,7 @@ def figure_r4(contrasts, figures, rng):
                         color=color, marker="o", markersize=7, linewidth=2, capsize=0, label=name)
         ax.set_xscale("log")
         ax.set_xticks([100, 200, 400], labels=["100", "200", "400"])
+        ax.xaxis.set_minor_locator(plt.NullLocator())
         ax.axhline(0, color=MUTED, linewidth=0.8)
         ax.set(xlabel="Network size N", title=f"H1 vs network size, trial {trial} (8 seeds, 95% CI)")
         _style(ax)
