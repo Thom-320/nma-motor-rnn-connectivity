@@ -130,9 +130,13 @@ def seed_contrasts(data: pd.DataFrame) -> pd.DataFrame:
 # ---------------------------------------------------------------- R3
 def r3_cells(data: pd.DataFrame, trial: int) -> pd.DataFrame:
     frozen = data[(data["arm"] == "frozen") & (data["checkpoint_trial"] == trial)]
-    return frozen.pivot_table(
+    cells = frozen.pivot_table(
         index="seed", columns=["p_value", "frozen_fraction"], values="heldout_nmse"
     )
+    needed = [(0.40, 0.0)] + [(p, f) for p in R3_DENSITIES for f in R3_FRACTIONS]
+    if any(key not in cells.columns for key in needed):
+        return None  # factorial not complete yet
+    return cells[needed].dropna()
 
 
 def r3_contrasts(cells: pd.DataFrame) -> pd.DataFrame:
@@ -160,6 +164,22 @@ def r3_contrasts(cells: pd.DataFrame) -> pd.DataFrame:
     out["slope_logp"] = coef[1]
     out["slope_f"] = coef[2]
     return out
+
+
+def convergence_table(data: pd.DataFrame) -> pd.DataFrame:
+    """Networks whose held-out NMSE still fell between two checkpoints."""
+    rows = []
+    for (arm, n_units), group in data.groupby(["arm", "n_units"]):
+        table = group.pivot_table(index=["seed", "condition"], columns="checkpoint_trial",
+                                  values="heldout_nmse")
+        for start, end in ((50, 60), (150, 200), (190, 200)):
+            if start not in table or end not in table:
+                continue
+            change = (table[end] - table[start]) / table[start]
+            rows.append({"arm": arm, "n_units": n_units, "from_trial": start, "to_trial": end,
+                         "n_networks": int(change.size), "n_improving": int((change < 0).sum()),
+                         "median_relative_change": float(change.median())})
+    return pd.DataFrame(rows)
 
 
 # ---------------------------------------------------------------- figures
@@ -242,7 +262,7 @@ def figure_r2(contrasts, radius, figures, rng):
     ax.axhline(0, color=MUTED, linewidth=0.8)
     ax.set(xlabel="Training trial", ylabel="H1 contrast (+ = denser better)",
            title="Gain matching (8 seeds, 95% CI)", xticks=REPORT)
-    ax.legend(frameon=False, fontsize=8)
+    ax.legend(frameon=False, fontsize=7.5, loc="center", ncol=2)
     ax = axes[1]
     for arm, color in (("primary", BLUE), ("control", ORANGE)):
         part = radius[radius["arm"] == arm]
@@ -277,9 +297,9 @@ def figure_r3(data, figures):
         ax.plot([0.0] + [f for _, f in diag], [base] + [cells[c].mean() for c in diag],
                 color=ORANGE, linestyle="--", linewidth=1.5, label="equal-budget control (diagonal)")
         ax.set(xlabel="Frozen share of recurrent input variance f",
-               title=f"Frozen-drive ablation, trial {trial} (8 seeds, mean +/- SEM)")
+               title=f"Frozen-drive ablation, trial {trial}")
         _style(ax)
-    axes[0].set_ylabel("Held-out NMSE")
+    axes[0].set_ylabel("Held-out NMSE (8 seeds, mean +/- SEM)")
     axes[0].legend(frameon=False, fontsize=8)
     fig.tight_layout()
     path = figures / "R3_frozen_drive.png"
@@ -395,7 +415,10 @@ def main() -> None:
     r3_rows = []
     if (data["arm"] == "frozen").any():
         for trial in REPORT:
-            r3 = r3_contrasts(r3_cells(data, trial))
+            cells = r3_cells(data, trial)
+            if cells is None or len(cells) < 2:
+                continue
+            r3 = r3_contrasts(cells)
             for column in r3.columns:
                 r3_rows.append({"checkpoint_trial": trial, "contrast": column, **summarise(r3[column], rng)})
     r3_summary = pd.DataFrame(r3_rows)
@@ -421,7 +444,10 @@ def main() -> None:
     radius = pd.DataFrame(radius_rows)
     radius.to_csv(out / "radius_gap.csv", index=False)
 
-    write_summary_table(summary, paired, r3_summary, radius, out)
+    convergence = convergence_table(data)
+    convergence.to_csv(out / "convergence.csv", index=False)
+
+    write_summary_table(summary, paired, r3_summary, radius, out, convergence)
 
     headline = {
         "bootstrap_resamples": BOOTSTRAP_RESAMPLES,
@@ -451,7 +477,7 @@ def main() -> None:
             made.append(figure_r4(contrasts, figures, rng))
     if {"primary_gain", "control_gain"} & arms:
         made.append(figure_r2(contrasts, radius[radius["arm"].isin(["primary", "control"])], figures, rng))
-    if "frozen" in arms:
+    if "frozen" in arms and r3_cells(data, 200) is not None:
         made.append(figure_r3(data, figures))
     for path in made:
         print(path)
@@ -462,7 +488,7 @@ def _fmt(row) -> str:
             f"{row['n_positive']}/{row['n_seeds']} +, p={row['sign_test_p']:.3g}")
 
 
-def write_summary_table(summary, paired, r3_summary, radius, out: Path) -> None:
+def write_summary_table(summary, paired, r3_summary, radius, out: Path, convergence=None) -> None:
     def pick(frame, **keys):
         sel = frame
         for key, value in keys.items():
@@ -527,8 +553,19 @@ def write_summary_table(summary, paired, r3_summary, radius, out: Path) -> None:
             if group["radius_gap"].std() < 1e-12:
                 lines.append(f"- {arm}: radius gap is zero by construction.")
                 continue
-            for label, part in (("seeds 0-7", group[group["seed"] < 8]), (f"all {len(group)} seeds", group)):
+            subsets = [("seeds 0-7", group[group["seed"] < 8])]
+            if len(group) > 8:
+                subsets.append((f"all {len(group)} seeds", group))
+            for label, part in subsets:
                 lines.append(f"- {arm}, {label}: r = {part['radius_gap'].corr(part['h1_t60']):+.2f}")
+        lines.append("")
+    if convergence is not None and not convergence.empty:
+        lines += ["## Convergence: networks still improving between checkpoints", "",
+                  "| Arm | N | From | To | Improving / networks | Median relative NMSE change |",
+                  "|---|---:|---:|---:|---|---:|"]
+        for _, row in convergence.iterrows():
+            lines.append(f"| {row['arm']} | {row['n_units']} | {row['from_trial']} | {row['to_trial']} | "
+                         f"{row['n_improving']}/{row['n_networks']} | {row['median_relative_change']:+.3f} |")
         lines.append("")
     (out / "summary_table.md").write_text("\n".join(lines))
 

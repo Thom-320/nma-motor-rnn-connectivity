@@ -14,7 +14,7 @@ Feulner/Clopath implementation and teaching fork credited in the
 
 - **Design:** four densities, eight paired network seeds and held-out evaluation with learning disabled.
 - **Primary result:** denser, all-edges-plastic networks performed better in this experiment.
-- **Control:** that trend did not recur with equal numbers of trainable recurrent edges. Read the [method and results](docs/EQUAL_PLASTICITY_CONTROL.md) before interpreting density as the cause.
+- **Control:** with an equal number of trainable recurrent edges the sign *reverses*: the sparsest networks do best (H1 −0.090, 95 % CI [−0.113, −0.068], negative in 8/8 seeds, versus +0.177 [0.136, 0.220], positive in 8/8, when all edges are trainable). Read the [method and results](docs/EQUAL_PLASTICITY_CONTROL.md) and the [robustness checks](docs/CLOUD-SESSION-2026-10.md) before interpreting density as the cause.
 - **Inspect without retraining:** open the notebook in `view` mode. The primary result and follow-up remain separate, and neither establishes a universal biological effect.
 
 ## The question
@@ -60,9 +60,16 @@ number of trainable recurrent edges. The denser networks still contain their
 additional structural edges, but those edges are frozen during learning. In
 this control, the mean final held-out NMSE was 0.424 at $p=0.05$, 0.524 at
 $p=0.10$, 0.488 at $p=0.20$, and 0.530 at $p=0.40$ across eight seeds. The
-primary all-edges-plastic trend therefore did not reappear under this control;
-the result is descriptive and does not establish a universal causal effect of
-density.
+primary all-edges-plastic trend therefore did not just disappear under this
+control; it reversed sign. The seed-level H1 contrast (sparse NMSE minus the
+mean denser NMSE; positive = denser better) was +0.177 (seed-bootstrap 95 %
+CI [0.136, 0.220], 8/8 seeds positive) in the primary run and −0.090
+([−0.113, −0.068], 8/8 seeds negative) under the control. The result is
+descriptive, comes from one model family, and does not establish a universal
+causal effect of density. H1/H2 are exploratory contrasts: they were first
+committed together with the primary results (3021081, 14 Jul 2026) and were
+fixed before the control was run (920ff92, 29 Aug 2026); they were not
+preregistered.
 
 The full method, outputs and analysis boundary are in
 [the equal-plasticity control note](docs/EQUAL_PLASTICITY_CONTROL.md). The

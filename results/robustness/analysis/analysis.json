@@ -1,0 +1,14 @@
+{
+  "bootstrap_resamples": 100000,
+  "bootstrap_seed": 20261009,
+  "ci": "seed-bootstrap 95% percentile interval of the mean",
+  "sign_test": "exact two-sided binomial sign test, zeros dropped",
+  "radius_gap_vs_h1_t60_r": {
+    "control": -0.43277856014709926,
+    "primary": -0.8992758320589676
+  },
+  "radius_gap_vs_h1_t60_r_seeds0_7": {
+    "control": -0.43277856014709926,
+    "primary": -0.8992758320589676
+  }
+}
