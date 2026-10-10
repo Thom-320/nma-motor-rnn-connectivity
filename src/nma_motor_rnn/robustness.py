@@ -11,9 +11,14 @@ An *arm* is one way of building the networks of a seed:
 ``primary``   every existing recurrent edge is trainable (as in Q2);
 ``control``   every density gets the p=0.05 trainable-edge budget (as in the
               equal-plasticity control);
+``control_random`` the same budget, but a random subset of each structural
+              mask is trainable instead of the p=0.05 edges (session 2);
 ``*_gain``    the same, with every initial recurrent matrix rescaled to the
               spectral radius of that seed's p=0.05 network (R2);
-``frozen``    the R3 frozen-drive ablation (see :func:`frozen_drive_weights`).
+``frozen``    the R3 frozen-drive ablation (see :func:`frozen_drive_weights`);
+``frozen_unmatched`` the R3 variant whose trainable edges keep the p=0.05
+              scale, so total gain grows with f (session 2).  Its f = 0 cell
+              is the ``frozen`` arm's f = 0 network and is not run again.
 
 Results are written per (arm, N, seed, condition) so that the grid is
 resumable and can be split across machines; ``collect`` merges them.
@@ -44,6 +49,7 @@ from .connectivity import (
     gain_match_scale,
     initial_recurrent_weights,
     make_equal_plasticity_masks,
+    make_random_subset_plasticity_masks,
     make_extended_shared_randomness,
     spectral_radius,
     train_condition,
@@ -55,7 +61,16 @@ BASE_TRIALS = 60
 TOTAL_TRIALS = 200
 EVAL_EVERY = 10
 REPORT_CHECKPOINTS = (60, 100, 150, 200)
-ARMS = ("primary", "control", "primary_gain", "control_gain", "frozen")
+ARMS = (
+    "primary",
+    "control",
+    "primary_gain",
+    "control_gain",
+    "frozen",
+    "control_random",
+    "frozen_unmatched",
+)
+FROZEN_ARMS = ("frozen", "frozen_unmatched")
 
 # R3 factorial: frozen-drive fraction f x structural density, plastic set = p 0.05.
 # f = 0 is the p = 0.05 network for every density, so it is run once (p = 0.40).
@@ -71,7 +86,7 @@ class Condition:
 
     @property
     def label(self) -> str:
-        if self.arm == "frozen":
+        if self.arm in FROZEN_ARMS:
             return f"p{self.p_value:.2f}_f{self.frozen_fraction:.3f}"
         return f"p{self.p_value:.2f}"
 
@@ -88,9 +103,9 @@ def robustness_config(n_units: int = 200) -> ExperimentConfig:
 def arm_conditions(arm: str) -> list[Condition]:
     if arm not in ARMS:
         raise ValueError(f"unknown arm {arm!r}; expected one of {ARMS}")
-    if arm != "frozen":
+    if arm not in FROZEN_ARMS:
         return [Condition(arm, p) for p in P_VALUES]
-    conditions = [Condition(arm, 0.40, 0.0)]
+    conditions = [Condition(arm, 0.40, 0.0)] if arm == "frozen" else []
     for p_value in R3_DENSITIES:
         for fraction in R3_FRACTIONS[1:]:
             conditions.append(Condition(arm, p_value, fraction))
@@ -104,13 +119,16 @@ def build_network_inputs(
 ) -> tuple[np.ndarray | None, np.ndarray | None, float]:
     """Return ``(plastic_mask, initial_weights, gain_scale)`` for one condition."""
     arm, p_value = condition.arm, condition.p_value
-    if arm == "frozen":
+    if arm in FROZEN_ARMS:
         weights, plastic = frozen_drive_weights(
-            config, shared, p_value, condition.frozen_fraction, p_plastic=P_VALUES[0]
+            config, shared, p_value, condition.frozen_fraction, p_plastic=P_VALUES[0],
+            match_total_gain=(arm == "frozen"),
         )
         return plastic, weights, 1.0
     plastic = None
-    if arm.startswith("control"):
+    if arm == "control_random":
+        plastic = make_random_subset_plasticity_masks(shared, P_VALUES)[float(p_value)]
+    elif arm.startswith("control"):
         plastic = make_equal_plasticity_masks(shared, P_VALUES)[float(p_value)]
     if not arm.endswith("_gain"):
         return plastic, None, 1.0

@@ -11,6 +11,7 @@ from nma_motor_rnn.connectivity import (
     initial_recurrent_weights,
     make_equal_plasticity_masks,
     make_extended_shared_randomness,
+    make_random_subset_plasticity_masks,
     make_shared_randomness,
     spectral_radius,
     structural_mask,
@@ -168,12 +169,119 @@ class FrozenDriveTests(unittest.TestCase):
         self.assertGreater(np.abs(network.W[plastic] - weights[plastic]).max(), 0.0)
 
 
+class RandomSubsetControlTests(unittest.TestCase):
+    def setUp(self):
+        self.config = small_config(n_units=80)
+        self.shared = make_shared_randomness(self.config, 3)
+        self.masks = make_random_subset_plasticity_masks(self.shared, P_VALUES)
+
+    def test_budget_equals_the_sparse_mask_in_every_condition(self):
+        budget = int(structural_mask(self.shared, 0.05).sum())
+        sparse_control = make_equal_plasticity_masks(self.shared, P_VALUES)
+        for p_value in P_VALUES:
+            self.assertEqual(int(self.masks[p_value].sum()), budget)
+            self.assertEqual(int(sparse_control[p_value].sum()), budget)
+
+    def test_subset_lies_inside_its_structural_mask(self):
+        for p_value in P_VALUES:
+            structural = structural_mask(self.shared, p_value)
+            self.assertFalse(np.any(self.masks[p_value] & ~structural))
+            self.assertFalse(np.any(np.diag(self.masks[p_value])))
+
+    def test_sparsest_condition_is_fully_trainable(self):
+        np.testing.assert_array_equal(
+            self.masks[0.05], structural_mask(self.shared, 0.05)
+        )
+
+    def test_dense_subsets_are_not_the_sparse_edges(self):
+        sparse = structural_mask(self.shared, 0.05)
+        budget = int(sparse.sum())
+        for p_value in P_VALUES[1:]:
+            overlap = int((self.masks[p_value] & sparse).sum())
+            self.assertLess(overlap, budget)
+            # A uniform subset hits the sparse edges at about the rate 0.05 / p.
+            self.assertAlmostEqual(overlap / budget, 0.05 / p_value, delta=0.12)
+
+    def test_is_reproducible_and_leaves_the_shared_stream_untouched(self):
+        before = self.shared.mask_uniform.copy()
+        again = make_random_subset_plasticity_masks(self.shared, P_VALUES)
+        for p_value in P_VALUES:
+            np.testing.assert_array_equal(again[p_value], self.masks[p_value])
+        np.testing.assert_array_equal(self.shared.mask_uniform, before)
+        other = make_random_subset_plasticity_masks(
+            make_shared_randomness(self.config, 4), P_VALUES
+        )
+        self.assertFalse(np.array_equal(other[0.40], self.masks[0.40]))
+
+    def test_arm_uses_default_weights_and_random_mask(self):
+        plastic, weights, scale = build_network_inputs(
+            self.config, self.shared, Condition("control_random", 0.20)
+        )
+        np.testing.assert_array_equal(plastic, self.masks[0.20])
+        self.assertIsNone(weights)
+        self.assertEqual(scale, 1.0)
+
+
+class UnmatchedFrozenDriveTests(unittest.TestCase):
+    def setUp(self):
+        self.config = small_config(n_units=60)
+        self.shared = make_shared_randomness(self.config, 2)
+
+    def test_trainable_part_is_the_sparse_network_for_every_fraction(self):
+        sparse = initial_recurrent_weights(self.config, self.shared, 0.05)
+        for p_value in (0.10, 0.20, 0.40):
+            for fraction in (0.0, 0.5, 0.875):
+                weights, plastic = frozen_drive_weights(
+                    self.config, self.shared, p_value, fraction, match_total_gain=False
+                )
+                np.testing.assert_allclose(weights * plastic, sparse, rtol=1e-12, atol=0.0)
+
+    def test_frozen_part_matches_the_gain_matched_ablation(self):
+        matched, plastic = frozen_drive_weights(self.config, self.shared, 0.40, 0.75)
+        unmatched, _ = frozen_drive_weights(
+            self.config, self.shared, 0.40, 0.75, match_total_gain=False
+        )
+        np.testing.assert_array_equal(unmatched[~plastic], matched[~plastic])
+
+    def test_diagonal_keeps_both_original_scales(self):
+        for p_value in P_VALUES[1:]:
+            fraction = (p_value - 0.05) / p_value
+            weights, plastic = frozen_drive_weights(
+                self.config, self.shared, p_value, fraction, match_total_gain=False
+            )
+            dense = initial_recurrent_weights(self.config, self.shared, p_value)
+            sparse = initial_recurrent_weights(self.config, self.shared, 0.05)
+            np.testing.assert_allclose(weights[~plastic], dense[~plastic], rtol=1e-12)
+            np.testing.assert_allclose(weights[plastic], sparse[plastic], rtol=1e-12)
+
+    def test_total_variance_grows_with_the_frozen_fraction(self):
+        config = small_config(n_units=400)
+        shared = make_shared_randomness(config, 0)
+        weights, _ = frozen_drive_weights(config, shared, 0.40, 0.75, match_total_gain=False)
+        total_per_unit = float(np.sum(weights**2)) / config.n_units
+        self.assertAlmostEqual(total_per_unit, config.g**2 * 1.75, delta=0.25)
+
+    def test_arm_builds_unmatched_networks(self):
+        plastic, weights, _ = build_network_inputs(
+            self.config, self.shared, Condition("frozen_unmatched", 0.20, 0.5)
+        )
+        expected, expected_plastic = frozen_drive_weights(
+            self.config, self.shared, 0.20, 0.5, match_total_gain=False
+        )
+        np.testing.assert_array_equal(weights, expected)
+        np.testing.assert_array_equal(plastic, expected_plastic)
+
+
 class GridDefinitionTests(unittest.TestCase):
     def test_arm_conditions(self):
         self.assertEqual([c.p_value for c in arm_conditions("primary")], list(P_VALUES))
         frozen = arm_conditions("frozen")
         self.assertEqual(len(frozen), 10)
         self.assertEqual(len({c.label for c in frozen}), 10)
+        unmatched = arm_conditions("frozen_unmatched")
+        self.assertEqual(len(unmatched), 9)
+        self.assertNotIn(0.0, [c.frozen_fraction for c in unmatched])
+        self.assertEqual(len(arm_conditions("control_random")), len(P_VALUES))
         with self.assertRaises(ValueError):
             arm_conditions("unknown")
 

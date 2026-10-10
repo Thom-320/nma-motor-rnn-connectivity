@@ -6,7 +6,9 @@ Reads ``results/robustness/<arm>_N<N>/checkpoints.csv`` and writes, under
 - ``seed_contrasts.csv``     seed-level H1/H2 (and R3) contrasts per arm, N, checkpoint;
 - ``contrast_summary.csv``   mean, seed-bootstrap 95 % CI, n positive, exact sign test;
 - ``paired_change.csv``      primary-minus-control H1/H2 per seed, summarised the same way;
-- ``r3_summary.csv``         frozen-drive ablation contrasts and two-way slopes;
+- ``r3_summary.csv``         frozen-drive ablation contrasts and two-way slopes, for the
+                             gain-matched (``frozen``) and unmatched-gain
+                             (``frozen_unmatched``) variants, and their difference;
 - ``radius_gap.csv``         initial spectral-radius gap vs H1 per seed and arm;
 - ``summary_table.md``       one table: does the sign reversal survive each check?
 - ``analysis.json``          bootstrap settings and headline numbers;
@@ -36,6 +38,10 @@ REPORT = (60, 100, 150, 200)
 P_VALUES = (0.05, 0.10, 0.20, 0.40)
 R3_FRACTIONS = (0.5, 0.75, 0.875)
 R3_DENSITIES = (0.10, 0.20, 0.40)
+FROZEN_ARMS = ("frozen", "frozen_unmatched")
+# (primary arm, equal-budget arm, pair suffix) compared in the summary table.
+PAIRS = (("primary", "control", ""), ("primary_gain", "control_gain", "_gain"),
+         ("primary", "control_random", "_random"))
 BLUE, ORANGE = "#2a78d6", "#eb6834"
 BLUE_LIGHT, ORANGE_LIGHT = "#86b6ef", "#f2a07f"
 DENSITY_RAMP = {0.05: "#86b6ef", 0.10: "#5598e7", 0.20: "#256abf", 0.40: "#0d366b"}
@@ -115,7 +121,7 @@ def h_contrasts(table: pd.DataFrame) -> pd.DataFrame:
 
 def seed_contrasts(data: pd.DataFrame) -> pd.DataFrame:
     rows = []
-    standard = data[data["arm"] != "frozen"]
+    standard = data[~data["arm"].isin(FROZEN_ARMS)]
     for (arm, n_units, trial), group in standard.groupby(["arm", "n_units", "checkpoint_trial"]):
         table = group.pivot(index="seed", columns="p_value", values="heldout_nmse")
         if not set(P_VALUES) <= set(table.columns):
@@ -131,8 +137,14 @@ def seed_contrasts(data: pd.DataFrame) -> pd.DataFrame:
 
 
 # ---------------------------------------------------------------- R3
-def r3_cells(data: pd.DataFrame, trial: int) -> pd.DataFrame:
-    frozen = data[(data["arm"] == "frozen") & (data["checkpoint_trial"] == trial)]
+def r3_cells(data: pd.DataFrame, trial: int, arm: str = "frozen") -> pd.DataFrame:
+    """Seed x (p, f) NMSE table.  The f = 0 cell is the p = 0.05 network and is
+    taken from the ``frozen`` arm for both variants (it is the same network)."""
+    at_trial = data[data["checkpoint_trial"] == trial]
+    frozen = at_trial[at_trial["arm"] == arm]
+    if arm != "frozen":
+        base = at_trial[(at_trial["arm"] == "frozen") & (at_trial["frozen_fraction"] == 0.0)]
+        frozen = pd.concat([base[base["seed"].isin(frozen["seed"])], frozen])
     cells = frozen.pivot_table(
         index="seed", columns=["p_value", "frozen_fraction"], values="heldout_nmse"
     )
@@ -166,6 +178,23 @@ def r3_contrasts(cells: pd.DataFrame) -> pd.DataFrame:
     coef, *_ = np.linalg.lstsq(design, y, rcond=None)
     out["slope_logp"] = coef[1]
     out["slope_f"] = coef[2]
+    return out
+
+
+def r3_gain_contrasts(matched: pd.DataFrame, unmatched: pd.DataFrame) -> pd.DataFrame:
+    """Seed-level gain-matched minus unmatched NMSE, averaged over density.
+
+    shrink_f{f}: mean over p of NMSE(matched, p, f) - NMSE(unmatched, p, f);
+                 + = the unmatched network (full-size trainable weights, extra
+                 total gain) is better.
+    """
+    seeds = matched.index.intersection(unmatched.index)
+    out = pd.DataFrame(index=seeds)
+    for f in R3_FRACTIONS:
+        out[f"shrink_f{f}"] = sum(
+            matched.loc[seeds, (p, f)] - unmatched.loc[seeds, (p, f)] for p in R3_DENSITIES
+        ) / len(R3_DENSITIES)
+    out["shrink_mean"] = out[[f"shrink_f{f}" for f in R3_FRACTIONS]].mean(axis=1)
     return out
 
 
@@ -250,7 +279,8 @@ def figure_r2(contrasts, radius, figures, rng):
     ax = axes[0]
     arms = [("primary", BLUE, "o", "All trainable"), ("primary_gain", BLUE_LIGHT, "s", "All trainable, gain-matched"),
             ("control", ORANGE, "o", "Equal budget"), ("control_gain", ORANGE_LIGHT, "s", "Equal budget, gain-matched")]
-    sel = contrasts[(contrasts["n_units"] == 200) & (contrasts["seed"] < 8)]
+    seeds = sorted(set(contrasts[contrasts["arm"] == "primary_gain"]["seed"]))
+    sel = contrasts[(contrasts["n_units"] == 200) & contrasts["seed"].isin(seeds)]
     for offset, (arm, color, marker, name) in enumerate(arms):
         part = sel[sel["arm"] == arm]
         if part.empty:
@@ -264,7 +294,7 @@ def figure_r2(contrasts, radius, figures, rng):
                     color=color, marker=marker, markersize=7, linewidth=2, capsize=0, label=name)
     ax.axhline(0, color=MUTED, linewidth=0.8)
     ax.set(xlabel="Training trial", ylabel="H1 contrast (+ = denser better)",
-           title="Gain matching (8 seeds, 95% CI)", xticks=REPORT)
+           title=f"Gain matching ({len(seeds)} seeds, 95% CI)", xticks=REPORT)
     ax.legend(frameon=False, fontsize=7.5, loc="center", ncol=2)
     ax = axes[1]
     for arm, color in (("primary", BLUE), ("control", ORANGE)):
@@ -283,13 +313,14 @@ def figure_r2(contrasts, radius, figures, rng):
     return path
 
 
-def figure_r3(data, figures):
+def figure_r3(data, figures, arm="frozen"):
     import matplotlib.pyplot as plt
 
     fig, axes = plt.subplots(1, 2, figsize=(10, 3.8), sharey=True)
     ramp = {0.10: DENSITY_RAMP[0.10], 0.20: DENSITY_RAMP[0.20], 0.40: DENSITY_RAMP[0.40]}
+    variant = "" if arm == "frozen" else ", unmatched gain"
     for ax, trial in zip(axes, (60, 200)):
-        cells = r3_cells(data, trial)
+        cells = r3_cells(data, trial, arm)
         base = cells[(0.40, 0.0)].mean()
         for p in R3_DENSITIES:
             means = [base] + [cells[(p, f)].mean() for f in R3_FRACTIONS]
@@ -298,14 +329,56 @@ def figure_r3(data, figures):
                         markersize=7, linewidth=2, capsize=0, label=f"structural p = {p:.2f}")
         diag = [(0.10, 0.5), (0.20, 0.75), (0.40, 0.875)]
         ax.plot([0.0] + [f for _, f in diag], [base] + [cells[c].mean() for c in diag],
-                color=ORANGE, linestyle="--", linewidth=1.5, label="equal-budget control (diagonal)")
-        ax.set(xlabel="Frozen share of recurrent input variance f",
-               title=f"Frozen-drive ablation, trial {trial}")
+                color=ORANGE, linestyle="--", linewidth=1.5,
+                label="equal-budget control (diagonal)" if arm == "frozen" else "diagonal")
+        ax.set(xlabel="Frozen share f" + (" of recurrent input variance" if arm == "frozen"
+                                          else " (trainable part fixed; total variance g^2(1+f))"),
+               title=f"Frozen-drive ablation{variant}, trial {trial}")
         _style(ax)
-    axes[0].set_ylabel("Held-out NMSE (8 seeds, mean +/- SEM)")
+    axes[0].set_ylabel(f"Held-out NMSE ({len(cells)} seeds, mean +/- SEM)")
     axes[0].legend(frameon=False, fontsize=8)
     fig.tight_layout()
-    path = figures / "R3_frozen_drive.png"
+    path = figures / ("R3_frozen_drive.png" if arm == "frozen" else "R3_unmatched_gain.png")
+    fig.savefig(path, dpi=180)
+    plt.close(fig)
+    return path
+
+
+def figure_random_subset(contrasts, data, figures, rng):
+    import matplotlib.pyplot as plt
+
+    seeds = sorted(set(contrasts[contrasts["arm"] == "control_random"]["seed"]))
+    sel = contrasts[(contrasts["n_units"] == 200) & contrasts["seed"].isin(seeds)]
+    fig, axes = plt.subplots(1, 2, figsize=(10, 3.8))
+    ax = axes[0]
+    arms = (("primary", BLUE, "All edges trainable"), ("control", ORANGE, "Equal budget: sparse edges"),
+            ("control_random", ORANGE_LIGHT, "Equal budget: random subset"))
+    for arm, color, name in arms:
+        part = sel[sel["arm"] == arm]
+        trials, means, lows, highs = [], [], [], []
+        for trial, group in part.groupby("checkpoint_trial"):
+            if trial == 0:
+                continue
+            m, lo, hi = _mean_ci(group, "h1", rng)
+            trials.append(trial); means.append(m); lows.append(lo); highs.append(hi)
+        ax.plot(trials, means, color=color, linewidth=2, label=name)
+        ax.fill_between(trials, lows, highs, color=color, alpha=0.18, linewidth=0)
+    ax.axhline(0, color=MUTED, linewidth=0.8)
+    ax.set(xlabel="Training trial", ylabel="H1 contrast (+ = denser better)",
+           title=f"Budget-matching schemes ({len(seeds)} seeds, 95% CI)")
+    ax.legend(frameon=False, fontsize=8)
+    ax = axes[1]
+    part = data[(data["arm"] == "control_random") & (data["n_units"] == 200)]
+    for p in P_VALUES:
+        curve = part[part["p_value"] == p].groupby("checkpoint_trial")["heldout_nmse"].mean()
+        ax.plot(curve.index, curve.values, color=DENSITY_RAMP[p], linewidth=2, label=f"p = {p:.2f}")
+    ax.set(xlabel="Training trial", ylabel=f"Held-out NMSE (mean of {len(seeds)} seeds)",
+           title="Equal budget, random subset")
+    ax.legend(frameon=False, fontsize=8)
+    for ax in axes:
+        _style(ax)
+    fig.tight_layout()
+    path = figures / "B3_random_subset.png"
     fig.savefig(path, dpi=180)
     plt.close(fig)
     return path
@@ -400,9 +473,9 @@ def main() -> None:
     summary.to_csv(out / "contrast_summary.csv", index=False)
 
     paired_rows = []
-    for suffix in ("", "_gain"):
-        primary = contrasts[contrasts["arm"] == "primary" + suffix]
-        control = contrasts[contrasts["arm"] == "control" + suffix]
+    for primary_arm, control_arm, suffix in PAIRS:
+        primary = contrasts[contrasts["arm"] == primary_arm]
+        control = contrasts[contrasts["arm"] == control_arm]
         merged = primary.merge(control, on=["n_units", "checkpoint_trial", "seed"], suffixes=("_p", "_c"))
         for (n_units, trial), group in merged.groupby(["n_units", "checkpoint_trial"]):
             if trial not in REPORT:
@@ -417,14 +490,27 @@ def main() -> None:
     paired.to_csv(out / "paired_change.csv", index=False)
 
     r3_rows = []
-    if (data["arm"] == "frozen").any():
+
+    def r3_seed_sets(frame):
+        yield "0-7", frame[frame.index < 8]
+        if frame.index.max() >= 8:
+            yield f"0-{int(frame.index.max())}", frame
+
+    for arm in FROZEN_ARMS:
+        if not (data["arm"] == arm).any():
+            continue
         for trial in REPORT:
-            cells = r3_cells(data, trial)
+            cells = r3_cells(data, trial, arm)
             if cells is None or len(cells) < 2:
                 continue
             r3 = r3_contrasts(cells)
-            for column in r3.columns:
-                r3_rows.append({"checkpoint_trial": trial, "contrast": column, **summarise(r3[column], rng)})
+            if arm != "frozen":
+                matched = r3_cells(data, trial, "frozen")
+                r3 = r3.join(r3_gain_contrasts(matched, cells), how="inner")
+            for label, subset in r3_seed_sets(r3):
+                for column in r3.columns:
+                    r3_rows.append({"arm": arm, "seeds": label, "checkpoint_trial": trial,
+                                    "contrast": column, **summarise(subset[column], rng)})
     r3_summary = pd.DataFrame(r3_rows)
     if not r3_summary.empty:
         r3_summary.to_csv(out / "r3_summary.csv", index=False)
@@ -481,8 +567,11 @@ def main() -> None:
             made.append(figure_r4(contrasts, figures, rng))
     if {"primary_gain", "control_gain"} & arms:
         made.append(figure_r2(contrasts, radius[radius["arm"].isin(["primary", "control"])], figures, rng))
-    if "frozen" in arms and r3_cells(data, 200) is not None:
-        made.append(figure_r3(data, figures))
+    for arm in FROZEN_ARMS:
+        if arm in arms and r3_cells(data, 200, arm) is not None:
+            made.append(figure_r3(data, figures, arm))
+    if "control_random" in arms:
+        made.append(figure_random_subset(contrasts, data, figures, rng))
     for path in made:
         print(path)
 
@@ -512,44 +601,65 @@ def write_summary_table(summary, paired, r3_summary, radius, out: Path, converge
     checks = []
     for trial in REPORT:
         checks.append(("R1 convergence" if trial != 60 else "Original snapshot (R1 at 60)", "", 200, "0-7", trial))
+    seeds16 = sorted(set(summary["seeds"]) - {"0-7"})
+    for label in ["0-7"] + seeds16:
+        for trial in (60, 200):
+            checks.append(("R2 gain-matched", "_gain", 200, label, trial))
     for trial in (60, 200):
-        checks.append(("R2 gain-matched", "_gain", 200, "0-7", trial))
+        checks.append(("B3 random-subset budget", "_random", 200, "0-7", trial))
     for n_units in (100, 400):
         for trial in (60, 200):
             checks.append(("R4 network size", "", n_units, "0-7", trial))
-    seeds16 = sorted(set(summary["seeds"]) - {"0-7"})
     for label in seeds16:
         for trial in (60, 200):
             checks.append(("R5 more seeds", "", 200, label, trial))
+    arms_of = {suffix: (primary_arm, control_arm) for primary_arm, control_arm, suffix in PAIRS}
     for name, suffix, n_units, seeds, trial in checks:
-        p = pick(summary, arm="primary" + suffix, n_units=n_units, checkpoint_trial=trial, seeds=seeds, contrast="h1")
-        c = pick(summary, arm="control" + suffix, n_units=n_units, checkpoint_trial=trial, seeds=seeds, contrast="h1")
+        primary_arm, control_arm = arms_of[suffix]
+        p = pick(summary, arm=primary_arm, n_units=n_units, checkpoint_trial=trial, seeds=seeds, contrast="h1")
+        c = pick(summary, arm=control_arm, n_units=n_units, checkpoint_trial=trial, seeds=seeds, contrast="h1")
         d = pick(paired, pair="primary-control" + suffix, n_units=n_units, checkpoint_trial=trial, seeds=seeds, contrast="h1")
         if p is None or c is None:
+            if seeds != "0-7":
+                continue  # extra seed set for an arm that has none
             lines.append(f"| {name} | {n_units} | {seeds} | {trial} | not run | not run | not run | pending |")
             continue
         verdict = "yes" if (sign_label(p), sign_label(c)) == ("+", "-") else f"no ({sign_label(p)} / {sign_label(c)})"
         lines.append(f"| {name} | {n_units} | {seeds} | {trial} | {_fmt(p)} | {_fmt(c)} | "
                      f"{_fmt(d) if d is not None else 'n/a'} | {verdict} |")
-    lines += ["", "Sign codes in the verdict: + CI above 0, - CI below 0, 0 CI includes 0 (primary / control).", ""]
-    if not r3_summary.empty:
+    lines += ["", "Sign codes in the verdict: + CI above 0, - CI below 0, 0 CI includes 0 (primary / control).",
+              "B3: equal-budget arm = a random subset of each structural mask (same per-seed budget as p = 0.05),",
+              "compared with the all-trainable arm of the same seeds.", ""]
+    titles = {
+        "frozen": "## R3 frozen-drive ablation (N = 200, total gain matched)",
+        "frozen_unmatched": ("## R3 variant with unmatched total gain (N = 200): trainable edges keep the "
+                             "p = 0.05 scale, frozen edges as in R3, total variance g^2 (1 + f)"),
+    }
+    for arm in FROZEN_ARMS:
+        part = r3_summary[r3_summary["arm"] == arm] if not r3_summary.empty else r3_summary
+        if part.empty:
+            continue
+        seed_labels = list(dict.fromkeys(part["seeds"]))
         lines += [
-            "## R3 frozen-drive ablation (N = 200, seeds 0-7)",
+            titles[arm],
             "",
-            "density_f*: NMSE(p=0.10) - mean NMSE(p=0.20, 0.40) at a fixed frozen-variance share f (+ = denser better).",
+            "density_f*: NMSE(p=0.10) - mean NMSE(p=0.20, 0.40) at a fixed frozen share f (+ = denser better).",
             "frozen_p*: NMSE(f=0) - mean NMSE(f=0.5, 0.75, 0.875) at fixed structural density (+ = more frozen drive better).",
             "slope_logp: change in NMSE per doubling of density at fixed f; slope_f: change in NMSE per unit f at fixed density.",
-            "diag_h1: the equal-budget control H1 rebuilt from the factorial's diagonal.",
-            "",
-            "| Contrast | Trial 60 | Trial 200 |",
-            "|---|---|---|",
+            "diag_h1: f = 0 minus the factorial's diagonal (for the gain-matched arm, the equal-budget control H1).",
         ]
-        for contrast in r3_summary["contrast"].unique():
+        if arm != "frozen":
+            lines.append("shrink_f*: mean over p of NMSE(gain-matched R3) - NMSE(unmatched) at fixed f "
+                         "(+ = keeping full-size trainable weights is better).")
+        header = " | ".join(f"Seeds {label}, trial {trial}" for label in seed_labels for trial in (60, 200))
+        lines += ["", f"| Contrast | {header} |", "|---|" + "---|" * (2 * len(seed_labels))]
+        for contrast in part["contrast"].unique():
             cells = []
-            for trial in (60, 200):
-                row = pick(r3_summary, contrast=contrast, checkpoint_trial=trial)
-                cells.append(_fmt(row) if row is not None else "n/a")
-            lines.append(f"| {contrast} | {cells[0]} | {cells[1]} |")
+            for label in seed_labels:
+                for trial in (60, 200):
+                    row = pick(part, contrast=contrast, checkpoint_trial=trial, seeds=label)
+                    cells.append(_fmt(row) if row is not None else "n/a")
+            lines.append(f"| {contrast} | " + " | ".join(cells) + " |")
         lines.append("")
     if not radius.empty:
         lines += ["## Initial spectral-radius gap vs H1 at trial 60 (N = 200)", ""]

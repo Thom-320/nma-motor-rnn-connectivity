@@ -124,6 +124,44 @@ def make_equal_plasticity_masks(
     return equal_masks
 
 
+def make_random_subset_plasticity_masks(
+    shared: SharedRandomness,
+    p_values: Sequence[float],
+) -> dict[float, np.ndarray]:
+    """Alternative equal-budget control: a random subset of each structural mask.
+
+    Every condition gets the same number of trainable recurrent edges as the
+    sparsest mask (the same per-seed budget as
+    :func:`make_equal_plasticity_masks`), but the trainable edges are a uniform
+    random subset of that condition's structural mask instead of the sparse
+    condition's edges.  The subset is chosen by a separate priority field drawn
+    from ``default_rng([seed, 2])``, so the original random stream is untouched
+    and the selection is reproducible.  At the sparsest density the subset is
+    the whole mask; at denser ones the trainable edges are spread over the
+    dense mask and are not nested across densities.
+    """
+    requested = tuple(float(p_value) for p_value in p_values)
+    if not requested or any(not (0.0 < p_value <= 1.0) for p_value in requested):
+        raise ValueError("p_values must be non-empty and lie in (0, 1]")
+    structural_masks = {
+        p_value: structural_mask(shared, p_value) for p_value in requested
+    }
+    budget = min(int(mask.sum()) for mask in structural_masks.values())
+    if budget < 1:
+        raise ValueError("equal plasticity control requires at least one edge")
+    priority = np.random.default_rng([int(shared.seed), 2]).random(
+        shared.mask_uniform.shape
+    ).ravel()
+    random_masks: dict[float, np.ndarray] = {}
+    for p_value, mask in structural_masks.items():
+        candidates = np.flatnonzero(mask.ravel())
+        order = np.argsort(priority[candidates], kind="stable")
+        plastic = np.zeros(mask.size, dtype=bool)
+        plastic[candidates[order[:budget]]] = True
+        random_masks[p_value] = plastic.reshape(mask.shape)
+    return random_masks
+
+
 def initial_recurrent_weights(
     config: ExperimentConfig,
     shared: SharedRandomness,
@@ -152,6 +190,7 @@ def frozen_drive_weights(
     p_structural: float,
     frozen_fraction: float,
     p_plastic: float = 0.05,
+    match_total_gain: bool = True,
 ) -> tuple[np.ndarray, np.ndarray]:
     """Build the R3 frozen-drive ablation network.
 
@@ -169,6 +208,14 @@ def frozen_drive_weights(
     ``p_structural`` changes only how many frozen edges carry the same frozen
     drive; holding ``p_structural`` fixed while varying ``f`` changes only how
     much of the drive is frozen.  Returns ``(initial_weights, plastic_mask)``.
+
+    With ``match_total_gain=False`` (the unmatched-gain variant) the trainable
+    edges keep the ``p_plastic`` network's scale ``g/sqrt(p_plastic*N)`` for
+    every ``f`` and the frozen edges are added on top with the same scale as
+    above, so the total input variance is ``g**2 * (1 + f)``.  On the diagonal
+    ``f = (p_structural - p_plastic) / p_structural`` both edge sets then keep
+    their original scales (``p_plastic`` and ``p_structural`` networks), and at
+    ``f = 0`` the network is again exactly the ``p_plastic`` network.
     """
     if not (0.0 <= frozen_fraction < 1.0):
         raise ValueError("frozen_fraction must lie in [0, 1)")
@@ -177,7 +224,8 @@ def frozen_drive_weights(
     plastic = structural_mask(shared, p_plastic)
     frozen = structural_mask(shared, p_structural) & ~plastic
     n = config.n_units
-    plastic_scale = config.g * np.sqrt(1.0 - frozen_fraction) / np.sqrt(p_plastic * n)
+    plastic_share = (1.0 - frozen_fraction) if match_total_gain else 1.0
+    plastic_scale = config.g * np.sqrt(plastic_share) / np.sqrt(p_plastic * n)
     frozen_scale = config.g * np.sqrt(frozen_fraction) / np.sqrt((p_structural - p_plastic) * n)
     weights = shared.weight_normal * (plastic_scale * plastic + frozen_scale * frozen)
     return weights, plastic
