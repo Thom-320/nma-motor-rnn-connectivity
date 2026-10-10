@@ -19,3 +19,17 @@ Sat Oct 10 16:06:34 UTC 2026
     45.4s  control_random_N200/seed00_p0.10_summary.csv
     46.6s  control_random_N200/seed01_p0.10_summary.csv
     47.5s  control_random_N200/seed03_p0.10_summary.csv
+    45.5s  control_random_N200/seed05_p0.10_summary.csv
+    45.7s  control_random_N200/seed04_p0.10_summary.csv
+    46.7s  control_random_N200/seed06_p0.10_summary.csv
+    46.4s  control_random_N200/seed07_p0.10_summary.csv
+    50.1s  control_random_N200/seed01_p0.05_summary.csv
+    51.1s  control_random_N200/seed00_p0.05_summary.csv
+    51.6s  control_random_N200/seed02_p0.05_summary.csv
+    50.7s  control_random_N200/seed03_p0.05_summary.csv
+    44.9s  control_random_N200/seed04_p0.05_summary.csv
+    44.4s  control_random_N200/seed05_p0.05_summary.csv
+    45.9s  control_random_N200/seed06_p0.05_summary.csv
+    44.7s  control_random_N200/seed07_p0.05_summary.csv
+32 tasks finished in 374.6s wall
+Sat Oct 10 16:12:49 UTC 2026
