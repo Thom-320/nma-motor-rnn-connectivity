@@ -23,23 +23,27 @@ variance-scaled weights and paired seeds.
 H1 (sparse NMSE minus mean denser NMSE) is +0.190 (seed-bootstrap 95 % CI
 [0.154, 0.229]) and is positive in 16/16 network seeds at $N=200$.
 
-**Equal trainable budget.** When every density receives the same set of
-trainable edges (those of the $p=0.05$ network), the advantage disappears. The
-per-seed drop from the first condition to the second is +0.231 [0.193, 0.267],
-positive in 16/16 seeds. It persists to 200 training trials, survives
-spectral-radius matching, and also appears at $N=400$ (8/8 seeds) and, after
-200 trials, at $N=100$.
+**Equal trainable budget.** When every density receives the same number of
+trainable edges, the advantage disappears. With the trainable set fixed to the
+$p=0.05$ network's edges, the per-seed drop from the first condition to the
+second is +0.231 [0.193, 0.267], positive in 16/16 seeds. It persists to 200
+training trials, survives spectral-radius matching (+0.214 [0.184, 0.249],
+16/16), also appears at $N=400$ (8/8 seeds) and, after 200 trials, at $N=100$.
+It also appears when the budget is a random subset of each dense mask instead
+(+0.248 [0.207, 0.285] at trial 200, 8/8).
 
 **The reversal.** An earlier 8-seed analysis found the sign *reversed* under
 the equal budget (H1 −0.090 [−0.113, −0.068]). That reversal is weaker than it
 first looked:
 - With 16 seeds it is −0.041 [−0.083, +0.011] at trial 60 and −0.055 [−0.100, −0.011] at trial 200.
-- It loses significance at trial 200 once spectral radii are matched.
-- A factorial ablation shows it is not a density effect. At a fixed share of frozen recurrent drive, density has no detectable effect (slope +0.005 NMSE per doubling [−0.052, 0.064]). Merely having frozen drive costs 0.03–0.13 NMSE.
+- With spectral radii matched (16 seeds) it is not distinguishable from zero at either checkpoint (trial 200: −0.039 [−0.086, +0.004]).
+- A factorial ablation (16 seeds) shows it is not a density effect. At a fixed share of frozen recurrent drive, density has no detectable effect (slope +0.014 NMSE per doubling [−0.018, 0.047] at trial 200). Adding frozen drive at a fixed density raises NMSE by 0.05–0.07 at trial 200, but this cost is not distinguishable from zero at trial 60.
 
 **Conclusion.** In this model the density advantage tracks the number of
-trainable recurrent edges, not structural density. The small residual cost of
-denser equal-budget networks comes from their frozen recurrent input.
+trainable recurrent edges, not structural density. Denser equal-budget
+networks are not better, and they may be slightly worse; that small residual
+tendency is not robust, and where it appears it is not a density effect. It is
+consistent with a cost of the frozen recurrent input such a control introduces.
 
 ---
 
@@ -63,8 +67,9 @@ checks we ran before trusting that reversal, and what is left of it.
 **Contribution.** A small, fully reproducible case study (paired seeds, held-out
 evaluation with a fixed decoder, exact identity checks between arms) showing:
 1. the density advantage in a FORCE-trained motor RNN is a plasticity-budget effect;
-2. the apparent reversal under a matched budget is a consequence of the frozen
-   edges that such a control necessarily introduces.
+2. the apparent reversal under a matched budget is small, not robust to gain
+   matching, and not a density effect; it is consistent with a cost of the
+   frozen edges that such a control necessarily introduces.
 
 We make no claim about biological circuits.
 
@@ -111,10 +116,15 @@ therefore a checkpoint of these runs, not a separate experiment.
 | All edges trainable (primary) | every existing edge (≈ $pN^2$) | $gG/\sqrt{pN}$ on $M_p$ |
 | Equal trainable budget (control) | the $p=0.05$ edges $M_{0.05}$ in every density | as primary; edges in $M_p\setminus M_{0.05}$ are frozen |
 | R2 gain-matched (both of the above) | as the parent arm | parent $W$ × scalar, so that $\rho(W_p)=\rho(W_{0.05})$ within the seed |
+| Equal budget, random subset (B3) | a uniform random subset of $M_p$ of the same size as $M_{0.05}$ (separate random stream) | as primary; the other edges of $M_p$ are frozen |
 | R3 frozen-drive factorial | $M_{0.05}$ | see §2.3 |
+| R3 with unmatched total gain (B4) | $M_{0.05}$ | see §2.3 |
 
 Because the masks are nested, the control's trainable *set* is identical
-across densities, not just its size.
+across densities, not just its size. The random-subset arm keeps only the size:
+its trainable edges are spread over the dense mask, are not nested across
+densities, and start from the smaller dense-network weights $gG/\sqrt{pN}$. At
+$p=0.05$ both equal-budget arms are the primary network (verified identical).
 
 ### 2.3 R3: separating frozen drive from density
 
@@ -151,6 +161,15 @@ factorial is anchored to the control rather than being a new model.
 edges, makes every network identical to $p=0.05$ and cannot measure anything.
 Holding $g^2$ fixed also keeps "more frozen input" from being confounded with
 "more total gain".
+
+**Unmatched-gain variant (B4).** With $g^2$ fixed, more frozen drive also
+means smaller trainable weights (factor $\sqrt{1-f}$). To separate the two we
+also run the same 3 × 3 grid with the trainable weights left at the $p=0.05$
+scale, $g/\sqrt{0.05N}$, and the frozen weights as above. The total input
+variance is then $g^2(1+f)$; on the diagonal both edge sets keep their original
+scales, and $f=0$ is again the $p=0.05$ network. This variant fixes the
+trainable weights but trades the confound for another one: total gain (initial
+spectral radius 1.9–2.2 against 1.56) grows with $f$.
 
 ### 2.4 Contrasts and statistics
 
@@ -192,8 +211,13 @@ as exploratory.
 - **R3 (frozen drive vs density):** §2.3.
 - **R4 (network size):** $N\in\{100,200,400\}$.
 - **R5 (more seeds):** 16 seeds at $N=200$.
+- **Second session (10 Oct 2026):** R2 and R3 extended to 16 seeds; B3, the
+  random-subset equal budget (8 seeds); B4, the unmatched-gain R3 variant
+  (8 seeds). These were listed as pending checks in the first session's record
+  before they were run.
 
-Unless stated otherwise, everything uses $N=200$ and seeds 0–7.
+Unless stated otherwise, everything uses $N=200$; R2, R3 and R5 use 16 seeds
+and the other checks seeds 0–7.
 
 ## 3. Results
 
@@ -208,11 +232,11 @@ Mean held-out NMSE, $N=200$, 16 seeds:
 | 0.20 | 0.271 | 0.155 | 0.475 | 0.379 |
 | 0.40 | 0.141 | 0.077 | 0.492 | 0.386 |
 
-With all edges trainable, H1 is positive in every seed, at every checkpoint
-and in every variant at $N=200$:
+With all edges trainable, H1 is positive at every checkpoint and in every
+variant at $N=200$, and in every seed except one gain-matched seed:
 - 16 seeds, trial 60: +0.190 [0.154, 0.229];
 - 16 seeds, trial 200: +0.173 [0.135, 0.210];
-- gain-matched, 8 seeds, trial 200: +0.184 [0.098, 0.258], positive in 7/8.
+- gain-matched, 16 seeds, trial 200: +0.175 [0.128, 0.218], positive in 15/16.
 
 H2 (diminishing returns) is not supported at the original snapshot: +0.046
 [−0.018, 0.111], 9/16. At trial 200 it is weakly positive (+0.087
@@ -229,14 +253,21 @@ this study. It is positive in every seed of every check that ran:
 |---|---|
 | Original snapshot, 8 seeds, trial 60 | +0.267 [0.232, 0.304], 8/8 |
 | R1, trial 200 | +0.261 [0.228, 0.296], 8/8 |
-| R2 gain-matched, trial 200 | +0.229 [0.184, 0.279], 8/8 |
+| R2 gain-matched, 16 seeds, trial 60 | +0.205 [0.169, 0.242], 16/16 |
+| R2 gain-matched, 16 seeds, trial 200 | +0.214 [0.184, 0.249], 16/16 |
+| B3 random-subset budget, trial 60 | +0.246 [0.170, 0.317], 8/8 |
+| B3 random-subset budget, trial 200 | +0.248 [0.207, 0.285], 8/8 |
 | R5, 16 seeds, trial 60 | +0.231 [0.193, 0.267], 16/16, $p=3\times10^{-5}$ |
 | R5, 16 seeds, trial 200 | +0.229 [0.191, 0.265], 16/16 |
 | R4, $N=100$, trial 200 | +0.179 [0.096, 0.273], 8/8 |
 | R4, $N=400$, trial 200 | +0.069 [0.060, 0.079], 8/8 |
 
 The denser networks' advantage therefore depends on their extra trainable
-edges. Holding the trainable set fixed removes all of it.
+edges. Holding the number of trainable edges fixed removes all of it, whether
+the trainable edges are the sparse network's edges or a random subset of the
+dense mask.
+
+![B3](../results/robustness/figures/B3_random_subset.png)
 
 ### 3.3 The sign reversal is small and fragile
 
@@ -246,20 +277,26 @@ The equal-budget H1 in each check (negative = sparse better):
 |---|---|---|
 | Original 8 seeds, trial 60 | −0.090 [−0.113, −0.068] | 8/8 |
 | R1, trial 100 / 150 / 200 | −0.064 / −0.069 / −0.062, all CIs < 0 | 7/8, 8/8, 7/8 |
-| R2 gain-matched, trial 60 | −0.068 [−0.117, −0.024] | 8/8 |
-| R2 gain-matched, trial 200 | −0.045 [−0.108, +0.009] | 5/8 |
+| R2 gain-matched, 8 seeds, trial 60 / 200 | −0.068 [−0.117, −0.024] / −0.045 [−0.108, +0.009] | 8/8, 5/8 |
+| R2 gain-matched, 16 seeds, trial 60 | −0.027 [−0.073, +0.019] | 10/16 |
+| R2 gain-matched, 16 seeds, trial 200 | −0.039 [−0.086, +0.004] | 9/16 |
+| B3 random-subset budget, trial 60 | −0.069 [−0.125, −0.015] | 6/8 |
+| B3 random-subset budget, trial 200 | −0.049 [−0.083, −0.017] | 6/8 |
 | R5 16 seeds, trial 60 | −0.041 [−0.083, +0.011] | 13/16 |
 | R5 16 seeds, trial 200 | −0.055 [−0.100, −0.011] | 12/16 |
 | R4 $N=100$, trial 200 | −0.084 [−0.142, −0.023] | 6/8 |
 | R4 $N=400$, trial 200 | −0.014 [−0.027, −0.002] | 6/8 |
 
-The direction is consistent: in every check most seeds have the sparsest
-network best. The magnitude, however, roughly halves when the seed count
-doubles. Seeds 8–15 alone average +0.008 at trial 60 (−0.049 at trial 200), so
-the original 8-seed estimate was optimistic. And under gain matching the interval reaches zero by trial 200.
+The point estimate is negative in every check, but the effect is small and
+fragile. Its magnitude roughly halves when the seed count doubles: seeds 8–15
+alone average +0.008 at trial 60 (−0.049 at trial 200), so the original 8-seed
+estimate was optimistic. Under gain matching with 16 seeds the interval
+includes zero at both checkpoints, and only 9–10 of 16 seeds are negative. The
+random-subset budget (B3) gives a negative H1 at 8 seeds, but so did the
+original control at 8 seeds before it halved.
 
-"Denser is worse under an equal budget" is therefore a modest tendency, not a
-clean reversal.
+"Denser is worse under an equal budget" is therefore at most a modest
+tendency, not a clean reversal. We do not claim it.
 
 **Spectral radius.** The initial spectral radius was not controlled in the
 original runs (1.48–1.65). In seeds 0–7 the sparse-minus-denser radius gap
@@ -288,42 +325,59 @@ NMSE change −11 % and −7 %). Between trials 190 and 200 only about half
 improved (17/32 and 15/32), which is consistent with a plateau plus noise. H1
 was flat from trial 40 onward in both arms.
 
-### 3.5 What drives the control's residual reversal: frozen drive, not density
+### 3.5 The control's residual tendency is not a density effect
 
 ![R3](../results/robustness/figures/R3_frozen_drive.png)
 
-**Density at a fixed frozen share has no detectable effect.**
+**Density at a fixed frozen share has no detectable effect** (R3, 16 seeds).
 
-| R3 contrast (8 seeds) | Trial 60 | Trial 200 |
+| R3 contrast (16 seeds) | Trial 60 | Trial 200 |
 |---|---|---|
-| density, $f=0.5$ | +0.011 [−0.059, 0.088] | +0.003 [−0.081, 0.116] |
-| density, $f=0.75$ | +0.064 [−0.057, 0.187] | +0.008 [−0.082, 0.094] |
-| density, $f=0.875$ | +0.106 [−0.007, 0.215] | +0.026 [−0.100, 0.152] |
-| slope per doubling of $p$ | −0.014 [−0.076, 0.055] | +0.005 [−0.052, 0.064] |
+| density, $f=0.5$ | −0.003 [−0.069, 0.062] | −0.029 [−0.093, 0.042] |
+| density, $f=0.75$ | +0.027 [−0.049, 0.104] | −0.021 [−0.077, 0.034] |
+| density, $f=0.875$ | +0.041 [−0.038, 0.121] | −0.008 [−0.078, 0.065] |
+| slope per doubling of $p$ | +0.002 [−0.037, 0.043] | +0.014 [−0.018, 0.047] |
 
-If anything the point estimates favour denser frozen connectivity, the
-opposite of the control's reversal.
+All intervals include zero and are centred near it; the 16-seed slope
+intervals are about half as wide as the 8-seed ones. This is the most solid
+part of the R3 result.
 
-**Adding frozen drive at a fixed density costs performance.**
+**Adding frozen drive at a fixed density: a small cost, clear only at trial 200.**
 
-| $f=0$ minus mean over $f\ge0.5$ | Trial 60 | Trial 200 |
+| $f=0$ minus mean over $f\ge0.5$ (16 seeds) | Trial 60 | Trial 200 |
 |---|---|---|
-| $p=0.10$ | −0.126 [−0.195, −0.051] | −0.068 [−0.132, −0.003] |
-| $p=0.20$ | −0.034 [−0.103, 0.029] | −0.033 [−0.107, 0.025] |
-| $p=0.40$ | −0.098 [−0.181, −0.014] | −0.078 [−0.150, −0.007] |
+| $p=0.10$ | −0.056 [−0.116, 0.003], 6/16 + | −0.045 [−0.092, 0.001], 6/16 + |
+| $p=0.20$ | −0.009 [−0.067, 0.052], 7/16 + | −0.056 [−0.110, −0.001], 5/16 + |
+| $p=0.40$ | −0.061 [−0.124, 0.007], 4/16 + | −0.074 [−0.129, −0.022], 4/16 + |
 
-The cost is roughly a step. At trial 200, NMSE rises from 0.334 ($f=0$) to
-0.35–0.42 for every cell with $f\ge0.5$, and the slope over $f\in[0.5,0.875]$ is
-flat (−0.013 [−0.070, 0.041]).
+With 8 seeds two of these three intervals excluded zero at trial 60; with 16
+seeds none does, and the per-seed sign tests are not significant ($p \ge 0.077$).
+At trial 200 the mean NMSE rises from 0.320 ($f=0$) to 0.36–0.40 for every cell
+with $f\ge0.5$, and the slope over $f\in[0.5,0.875]$ is flat (−0.005
+[−0.058, 0.043]).
+
+**What the unmatched-gain variant adds (B4, 8 seeds).** Keeping the trainable
+weights at full size and adding frozen drive on top is far worse: NMSE 0.53–0.72
+at trial 200 against 0.334 at $f=0$ (frozen-drive cost −0.30 to −0.34, 8/8
+seeds in every column), and the cost now grows with $f$ (slope +0.350
+[0.273, 0.426] per unit $f$, 8/8). Every unmatched cell is worse than the
+matching gain-matched R3 cell (mean difference −0.260 [−0.300, −0.222], 8/8).
+So shrinking the trainable weights is not what makes R3's frozen-drive cells
+worse: at the same frozen drive, full-size trainable weights do worse, not
+better. Because the unmatched networks also have larger total gain, B4 cannot
+say whether frozen drive as such or the extra gain does the damage; density
+again has no effect at fixed $f$ (slope +0.007 [−0.024, 0.037]).
+
+![R3 unmatched](../results/robustness/figures/R3_unmatched_gain.png)
 
 **Interpretation.** The equal-budget control, rebuilt from the factorial's
-diagonal (−0.090 at trial 60, −0.062 at trial 200), compares a network with no
-frozen drive ($p=0.05$) against three networks that have some. Its negative H1
-is accounted for by that step, not by density.
-
-**Caveat.** Within the factorial the effects are noisy: 8 seeds, individual
-sign tests not significant. The $p=0.20$ column is consistently the best of
-the three densities, a non-monotonicity that we cannot explain.
+diagonal, compares a network with no frozen drive ($p=0.05$) against three
+networks that have some. Density at fixed frozen share contributes nothing
+detectable, so whatever residual negative H1 the control has is not a density
+effect. Attributing it to frozen recurrent drive is consistent with the R3
+step at trial 200 and with B4, but the 16-seed evidence for that step is weak
+(trial 200 only, sign tests not significant), so we state it as the most
+likely explanation rather than as an established result.
 
 ### 3.6 Network size
 
@@ -359,25 +413,26 @@ Absolute H1 is not comparable across $N$, because the NMSE floor differs.
   recurrent weights, a fixed random decoder, and six-target reaching with
   constant velocities. We do not test other learning rules (BPTT,
   node-perturbation), output training, or structured connectivity.
-- **Small samples.** 8 seeds for R1–R4 and 16 for R5. The R5 result shows that
-  8-seed effect sizes in this system can shrink by half; the R3 factorial and
-  the $N=400$ result rest on 8 seeds.
+- **Small samples.** 16 seeds for R2, R3 and R5; 8 seeds for R1, R4, B3 and
+  B4. R5 and R2 show that 8-seed effect sizes in this system can shrink by
+  half; the $N=400$, random-subset and unmatched-gain results rest on 8 seeds.
 - **Not fully converged.** At 200 trials, roughly half of the networks still
   improve over the last 10 trials. Contrasts were stable from trial ~40 onward,
   but asymptotic behaviour is not established.
-- **The "equal budget" is one specific choice.** It fixes the trainable edge
-  set to the sparse network's edges. Other budget-matching schemes are
-  possible, for example a random subset of each dense mask or an equal number
-  of trainable weights per neuron. We did not test whether they behave the
-  same.
-- **R3 holds total input variance fixed at $g^2$.** It therefore cannot
-  distinguish "frozen drive" from "smaller trainable weights": with fixed
-  total variance these are the same manipulation. A version with unmatched
-  total gain would separate them.
+- **Budget-matching schemes.** We tested two: the sparse network's edges and
+  a random subset of each dense mask (8 seeds). Both remove the advantage.
+  Other schemes, such as an equal number of trainable weights per neuron, were
+  not tested.
+- **Frozen drive vs gain.** R3 holds total variance at $g^2$, so more frozen
+  drive also means smaller trainable weights; B4 keeps the trainable weights
+  fixed but lets total gain grow. Together they rule out "smaller trainable
+  weights" as the source of R3's cost, but they do not separate frozen drive
+  from total gain. The missing cell is shrunken trainable weights with the
+  frozen edges deleted.
 - **Gain matching rescales all weights.** It matches the spectral radius but
   changes the trainable weights' scale too.
 - **Analysis choices.** H1/H2 are exploratory, not preregistered (§2.4). No
-  multiplicity correction is applied across the ~40 reported intervals.
+  multiplicity correction is applied across the ~60 reported intervals.
 - **Biology.** No claim about cortical connectivity follows from this model.
 
 ## 5. Conclusion
@@ -385,14 +440,17 @@ Absolute H1 is not comparable across $N$, because the NMSE floor differs.
 In a FORCE-trained motor RNN, the performance advantage of denser recurrent
 connectivity is explained by the number of trainable recurrent edges:
 - holding the trainable set fixed removes it in 16/16 seeds;
-- this holds across training length and spectral-radius matching;
+- this holds across training length, spectral-radius matching (16/16) and a
+  second budget-matching scheme (random subset, 8/8);
 - it holds at $N=400$, and at $N=100$ after 200 trials. At $N=100$ the
   networks barely learn, and the all-trainable advantage itself is not
   significant there.
 
-A matched-budget control does more than remove the advantage. It gives denser
-networks a small extra handicap, and a factorial ablation traces that handicap
-to the frozen recurrent drive the control introduces, not to density.
+Under a matched budget, denser networks are no better and possibly slightly
+worse. That residual handicap is small and does not survive gain matching with
+16 seeds. A factorial ablation shows it is not a density effect; it is most
+plausibly a cost of the frozen recurrent drive the control introduces, but
+that attribution rests on weak evidence.
 
 Studies that vary connectivity under recurrent learning should report the
 trainable-parameter count as a separate factor. They should also note that
@@ -415,9 +473,10 @@ before submission.)_
 
 ```bash
 pip install -e .
-python scripts/run_robustness_grid.py --workers 4     # ~2 h on 4 CPU cores; resumable
+python scripts/run_robustness_grid.py --workers 4     # R1-R5, ~2 h on 4 CPU cores; resumable
+python scripts/run_robustness_grid.py --only R2x,R3x,B3,B4   # second session, ~52 min
 python scripts/analyze_robustness.py                  # tables + figures
-python -m unittest discover -s tests                  # 29 tests
+python -m unittest discover -s tests                  # 40 tests
 ```
 
 Per-network CSVs are in `results/robustness/raw/`, merged tables in
