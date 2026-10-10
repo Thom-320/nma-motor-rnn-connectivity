@@ -61,8 +61,9 @@ With 16 seeds instead of 8, the equal-budget H1 at trial 60 is $-0.041$
 $[-0.100, -0.011]$ after 200 training trials. The direction holds but the
 8-seed estimate above overstated its size. The primary-minus-control change
 (+0.231 $[0.193, 0.267]$, 16/16) is the robust result. A frozen-drive
-factorial finds no density effect at a fixed share of frozen recurrent drive;
-the residual reversal tracks the presence of frozen edges. Details:
+factorial (16 seeds) detects no density effect at a fixed share of frozen
+recurrent drive. The residual reversal is more consistent with the presence of
+frozen edges than with density, but density is not excluded. Details:
 [`CLOUD-SESSION-2026-10.md`](CLOUD-SESSION-2026-10.md).
 
 ## Reproduce

@@ -111,8 +111,10 @@ factorial, $N \in \{100, 200, 400\}$, 16 seeds) are in
 [`paper/NOTE.md`](../paper/NOTE.md). In short: the all-edges-trainable
 advantage and its removal under an equal trainable budget are robust (16/16
 seeds); the *reversal* under the equal budget is roughly half as large with 16
-seeds as with 8, and a factorial ablation attributes it to the frozen
-recurrent drive the control introduces rather than to density.
+seeds as with 8. A 16-seed factorial ablation detects no density component in
+it and a frozen-drive cost of similar size, so it is more consistent with the
+frozen recurrent drive the control introduces than with density (not
+established).
 
 ## NMA links
 

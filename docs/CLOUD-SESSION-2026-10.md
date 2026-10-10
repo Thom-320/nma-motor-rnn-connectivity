@@ -185,7 +185,9 @@ construction, leaves the primary advantage and the paired change intact.
    updated the README to state the 8-seed reversal precisely and to point
    here; the defensible headline is that the advantage *disappears* (paired
    change +0.23, 16/16), with a small residual reversal.
-2. **The reversal is not a density effect.** The README's earlier framing
+2. **The reversal is not a density effect** *(9 Oct, 8-seed reading;
+   superseded: with 16 seeds no density effect is detected, but one of the
+   reversal's size is not excluded — see the second-session section)*. The README's earlier framing
    ("can't tell which of the two did the work") is now answered for this
    model: the number of trainable edges does the work. The residual reversal
    comes from frozen recurrent drive (R3).
@@ -398,8 +400,11 @@ from frozen recurrent drive". Three things changed:
 
 **New headline in `paper/NOTE.md`:** "the density advantage disappears under an
 equal trainable budget; any residual handicap of denser equal-budget networks
-is small, not robust to gain matching, and not a density effect — most
-plausibly a cost of frozen recurrent drive, but that attribution is weak."
+is small, not robust to gain matching, and shows no detectable density
+component — most plausibly a cost of frozen recurrent drive, but that
+attribution is weak." (Wording corrected in a third pass on 10 Oct: the
+16-seed density intervals, about ±0.06–0.09, cannot exclude a density effect
+as large as the reversal, so "not a density effect" was an overstatement.)
 
 ### Still open
 

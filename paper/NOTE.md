@@ -37,13 +37,14 @@ the equal budget (H1 −0.090 [−0.113, −0.068]). That reversal is weaker tha
 first looked:
 - With 16 seeds it is −0.041 [−0.083, +0.011] at trial 60 and −0.055 [−0.100, −0.011] at trial 200.
 - With spectral radii matched (16 seeds) it is not distinguishable from zero at either checkpoint (trial 200: −0.039 [−0.086, +0.004]).
-- A factorial ablation (16 seeds) shows it is not a density effect. At a fixed share of frozen recurrent drive, density has no detectable effect (slope +0.014 NMSE per doubling [−0.018, 0.047] at trial 200). Adding frozen drive at a fixed density raises NMSE by 0.05–0.07 at trial 200, but this cost is not distinguishable from zero at trial 60.
+- A factorial ablation (16 seeds) detects no density component in it. At a fixed share of frozen recurrent drive, the NMSE slope per doubling of density is +0.014 [−0.018, 0.047] at trial 200. Over the two doublings from $p=0.10$ to $0.40$ that interval still admits a density effect as large as the reversal, so density is not excluded. Adding frozen drive at a fixed density raises NMSE by 0.05–0.07 at trial 200, but this cost is not distinguishable from zero at trial 60.
 
 **Conclusion.** In this model the density advantage tracks the number of
 trainable recurrent edges, not structural density. Denser equal-budget
 networks are not better, and they may be slightly worse; that small residual
-tendency is not robust, and where it appears it is not a density effect. It is
-consistent with a cost of the frozen recurrent input such a control introduces.
+tendency is not robust, and where it appears no density component is detected.
+It is more consistent with a cost of the frozen recurrent input such a control
+introduces, though neither explanation is established.
 
 ---
 
@@ -67,9 +68,10 @@ checks we ran before trusting that reversal, and what is left of it.
 **Contribution.** A small, fully reproducible case study (paired seeds, held-out
 evaluation with a fixed decoder, exact identity checks between arms) showing:
 1. the density advantage in a FORCE-trained motor RNN is a plasticity-budget effect;
-2. the apparent reversal under a matched budget is small, not robust to gain
-   matching, and not a density effect; it is consistent with a cost of the
-   frozen edges that such a control necessarily introduces.
+2. the apparent reversal under a matched budget is small and not robust to gain
+   matching. A factorial ablation detects no density component in it; it is
+   more consistent with a cost of the frozen edges that such a control
+   necessarily introduces.
 
 We make no claim about biological circuits.
 
@@ -325,7 +327,7 @@ NMSE change −11 % and −7 %). Between trials 190 and 200 only about half
 improved (17/32 and 15/32), which is consistent with a plateau plus noise. H1
 was flat from trial 40 onward in both arms.
 
-### 3.5 The control's residual tendency is not a density effect
+### 3.5 No density component is detected in the control's residual tendency
 
 ![R3](../results/robustness/figures/R3_frozen_drive.png)
 
@@ -340,7 +342,12 @@ was flat from trial 40 onward in both arms.
 
 All intervals include zero and are centred near it; the 16-seed slope
 intervals are about half as wide as the 8-seed ones. This is the most solid
-part of the R3 result.
+part of the R3 result, but it is an absence of evidence, not evidence of
+absence. The trial-200 density contrasts reach −0.08 to −0.09, and the slope's
+upper bound (+0.047 per doubling, two doublings from $p=0.10$ to $0.40$) allows
+up to ≈ 0.09 NMSE. Both exceed the control's reversal (−0.055), so a density
+component of that size cannot be excluded. Excluding it would need intervals of
+about ±0.03, i.e. roughly four times as many seeds.
 
 **Adding frozen drive at a fixed density: a small cost, clear only at trial 200.**
 
@@ -373,8 +380,8 @@ again has no effect at fixed $f$ (slope +0.007 [−0.024, 0.037]).
 **Interpretation.** The equal-budget control, rebuilt from the factorial's
 diagonal, compares a network with no frozen drive ($p=0.05$) against three
 networks that have some. Density at fixed frozen share contributes nothing
-detectable, so whatever residual negative H1 the control has is not a density
-effect. Attributing it to frozen recurrent drive is consistent with the R3
+detectable, although the ablation is not precise enough to exclude a density
+component as large as the control's residual negative H1. Attributing it to frozen recurrent drive is consistent with the R3
 step at trial 200 and with B4, but the 16-seed evidence for that step is weak
 (trial 200 only, sign tests not significant), so we state it as the most
 likely explanation rather than as an established result.
@@ -448,9 +455,9 @@ connectivity is explained by the number of trainable recurrent edges:
 
 Under a matched budget, denser networks are no better and possibly slightly
 worse. That residual handicap is small and does not survive gain matching with
-16 seeds. A factorial ablation shows it is not a density effect; it is most
-plausibly a cost of the frozen recurrent drive the control introduces, but
-that attribution rests on weak evidence.
+16 seeds. A factorial ablation detects no density component in it, but cannot exclude
+one of the same size. It is most plausibly a cost of the frozen recurrent drive
+the control introduces, but that attribution also rests on weak evidence.
 
 Studies that vary connectivity under recurrent learning should report the
 trainable-parameter count as a separate factor. They should also note that

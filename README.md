@@ -90,9 +90,11 @@ draft: [paper/NOTE.md](paper/NOTE.md).
 - **Fragile:** the sign *reversal* under the equal budget. With 16 seeds it is
   −0.041 [−0.083, +0.011] at trial 60 and −0.055 [−0.100, −0.011] at trial 200;
   with matched spectral radii it is not distinguishable from zero at trial 200.
-- **Mechanism:** at a fixed share of frozen recurrent drive, density has no
-  detectable effect; the residual reversal comes from the frozen edges the
-  control introduces, not from density.
+- **Mechanism (tentative):** a 16-seed factorial detects no density effect at
+  a fixed share of frozen recurrent drive, and finds a frozen-drive cost of
+  about the reversal's size after 200 trials. The residual reversal is
+  therefore more consistent with the frozen edges the control introduces than
+  with density, but the factorial cannot exclude a density effect that large.
 - **Size:** the same pattern holds at $N=400$ (8/8 seeds; smaller absolute
   contrasts because these networks learn the task almost fully). At $N=100$
   the networks barely learn, and the all-trainable advantage is not
