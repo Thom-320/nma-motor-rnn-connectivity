@@ -1,5 +1,8 @@
 # Equal-plasticity follow-up control
 
+> **Update, October 2026.** The 8-seed result below did not hold up. With 16 seeds the sign reversal under an equal trainable budget is small and not robust (−0.041, 95% CI −0.083 to +0.011); what holds is that the density advantage disappears (per-seed drop +0.231, 95% CI 0.193 to 0.267, 16 of 16 seeds). See the robustness note: [paper/NOTE.md on branch robustness-2026-10](https://github.com/Thom-320/nma-motor-rnn-connectivity/blob/robustness-2026-10/paper/NOTE.md).
+
+
 ## Question
 
 The primary Q2 experiment changes two things together when it raises the
