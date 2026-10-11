@@ -9,7 +9,8 @@ We keep the PDFs locally but out of Git — no point redistributing publisher co
 | Sparse reservoirs can compute | Jaeger & Haas (2004) | [DOI](https://doi.org/10.1126/science.1091277) |
 | Connectivity shapes the manifold | Wärnberg & Kumar (2019) | [PLOS, open](https://doi.org/10.1371/journal.pcbi.1007074) |
 | Why low dimensionality can fool you | Gao et al. (2017) | [bioRxiv](https://doi.org/10.1101/214262) |
-| Denser isn't automatically better | Khona et al. (2022) | [arXiv](https://arxiv.org/abs/2207.03523) |
+| Denser isn't automatically better | Khona et al. (2023) | [Neural Computation](https://doi.org/10.1162/neco_a_01613), [arXiv](https://arxiv.org/abs/2207.03523) |
+| Sparse recurrent ANNs can learn faster | Fruengel & Oberlaender (2025) | [Frontiers, open](https://doi.org/10.3389/fncir.2025.1528309) |
 
 That's the whole set for the question we're on. If we add a plasticity control, a task-complexity manipulation, or BCI perturbations, we'd need to go looking again first.
 

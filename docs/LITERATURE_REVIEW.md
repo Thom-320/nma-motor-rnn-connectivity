@@ -171,7 +171,7 @@ Reference: [Gao et al., 2017 preprint](https://doi.org/10.1101/214262)
 
 **6. Follow-up:** Does global random connection probability affect a Feulner-style motor RNN under paired variance-normalized initialization? Because the topology, tasks, and learning rules differ, this paper motivates the question but does not predict our result directly.
 
-Reference: [Khona et al., arXiv:2207.03523](https://arxiv.org/abs/2207.03523)
+Reference: [Khona, Chandra, Ma & Fiete, 2023, *Neural Computation* 35(11)](https://doi.org/10.1162/neco_a_01613); preprint [arXiv:2207.03523](https://arxiv.org/abs/2207.03523)
 
 ## Cross-paper synthesis
 

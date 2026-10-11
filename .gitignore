@@ -17,3 +17,14 @@ literature/pdfs/*.pdf
 /vendor/
 tmp/
 runtime_results/
+
+# LaTeX build products (main.pdf is committed on purpose)
+paper/latex/*.aux
+paper/latex/*.bbl
+paper/latex/*.blg
+paper/latex/*.fdb_latexmk
+paper/latex/*.fls
+paper/latex/*.log
+paper/latex/*.out
+paper/latex/arxiv/
+paper/latex/arxiv.zip

@@ -12,10 +12,22 @@ Feulner/Clopath implementation and teaching fork credited in the
 
 ## Read in five minutes
 
-- **Design:** four densities, eight paired network seeds and held-out evaluation with learning disabled.
-- **Primary result:** denser, all-edges-plastic networks performed better in this experiment.
-- **Control:** with an equal number of trainable recurrent edges the advantage is gone and, in the original eight seeds, the sign *reversed*: the sparsest networks did best (H1 −0.090, 95 % CI [−0.113, −0.068], negative in 8/8 seeds, versus +0.177 [0.136, 0.220], positive in 8/8, when all edges are trainable). With 16 seeds the reversal is about half that size; see the robustness checks below. Read the [method and results](docs/EQUAL_PLASTICITY_CONTROL.md) and the [robustness checks](docs/CLOUD-SESSION-2026-10.md) before interpreting density as the cause.
-- **Inspect without retraining:** open the notebook in `view` mode. The primary result and follow-up remain separate, and neither establishes a universal biological effect.
+- **Result:** with all recurrent edges trainable, denser networks learn the
+  reaching task better (16/16 seeds at $N=200$). Give every density the same
+  number of trainable edges and **the advantage disappears** (paired drop in
+  the density contrast +0.231, 95 % CI [0.193, 0.267], 16/16 seeds). In this
+  model, the density advantage is a plasticity-budget effect.
+- **Not a sign reversal:** an early 8-seed control suggested that sparse
+  networks became *better* under the equal budget. With 16 seeds that residual
+  is about half as large, and with matched spectral radii it is not
+  distinguishable from zero. We do not claim a reversal.
+- **Write-up:** preprint draft in [`paper/latex/main.pdf`](paper/latex/main.pdf)
+  (source [`paper/latex/main.tex`](paper/latex/main.tex), Markdown version
+  [`paper/NOTE.md`](paper/NOTE.md)). Not peer reviewed.
+- **Design:** four densities, paired network seeds, held-out evaluation with
+  learning disabled, and robustness checks (training length, gain matching, a
+  frozen-drive factorial, $N \in \{100, 200, 400\}$, 16 seeds).
+- **Inspect without retraining:** open the notebook in `view` mode.
 
 ## The question
 
@@ -26,8 +38,7 @@ We train a network to make reaching movements, then change how densely its neuro
 The committed Q2 run does not separate density from the number of trainable
 recurrent weights. A follow-up control for that confound is implemented in
 [`run_equal_plasticity_experiment`](src/nma_motor_rnn/connectivity.py) and
-described below; it is kept separate from the primary result until the team
-reviews the analysis.
+described below.
 
 ## Q1 — can it learn at all?
 
@@ -55,21 +66,20 @@ And the catch that drives the whole project: the denser networks also had **more
 
 ## Follow-up — equal plasticity control
 
-We ran the same primary-sized experiment while giving every density the same
-number of trainable recurrent edges. The denser networks still contain their
-additional structural edges, but those edges are frozen during learning. In
-this control, the mean final held-out NMSE was 0.424 at $p=0.05$, 0.524 at
-$p=0.10$, 0.488 at $p=0.20$, and 0.530 at $p=0.40$ across eight seeds. The
-primary all-edges-plastic trend therefore did not just disappear under this
-control; it reversed sign. The seed-level H1 contrast (sparse NMSE minus the
-mean denser NMSE; positive = denser better) was +0.177 (seed-bootstrap 95 %
-CI [0.136, 0.220], 8/8 seeds positive) in the primary run and −0.090
-([−0.113, −0.068], 8/8 seeds negative) under the control. The result is
-descriptive, comes from one model family, and does not establish a universal
-causal effect of density. H1/H2 are exploratory contrasts: they were first
-committed together with the primary results (3021081, 14 Jul 2026) and were
-fixed before the control was run (920ff92, 29 Aug 2026); they were not
-preregistered.
+*Historical first pass (8 seeds, 60 trials); superseded by the robustness
+checks below.* We ran the same primary-sized experiment while giving every
+density the same number of trainable recurrent edges. The denser networks
+still contain their additional structural edges, but those edges are frozen
+during learning. In this first pass the mean final held-out NMSE was 0.424 at
+$p=0.05$, 0.524 at $p=0.10$, 0.488 at $p=0.20$, and 0.530 at $p=0.40$ across
+eight seeds, and the seed-level H1 contrast (sparse NMSE minus the mean denser
+NMSE; positive = denser better) went from +0.177 (95 % CI [0.136, 0.220], 8/8
+positive) to −0.090 ([−0.113, −0.068], 8/8 negative). That apparent sign
+reversal did **not** hold up with 16 seeds and gain matching (next section);
+what holds is that the density advantage disappears. H1/H2 are exploratory
+contrasts: they were first committed together with the primary results
+(3021081, 14 Jul 2026) and were fixed before the control was run (920ff92,
+29 Aug 2026); they were not preregistered.
 
 The full method, outputs and analysis boundary are in
 [the equal-plasticity control note](docs/EQUAL_PLASTICITY_CONTROL.md). The
@@ -80,14 +90,14 @@ primary Q2 results above are unchanged.
 Before writing this up we stress-tested the result: 200 training trials,
 initial spectral radius matched across densities, a factorial that separates
 frozen recurrent drive from density, $N \in \{100, 200, 400\}$ and 16 seeds.
-Full numbers: [cloud-session record](docs/CLOUD-SESSION-2026-10.md); write-up
-draft: [paper/NOTE.md](paper/NOTE.md).
+Full numbers: [cloud-session record](docs/CLOUD-SESSION-2026-10.md); write-up:
+[paper/latex/main.pdf](paper/latex/main.pdf).
 
 - **Robust:** with all edges trainable, denser is better at $N=200$
   (16/16 seeds, H1 +0.190 [0.154, 0.229]); an equal trainable budget removes
   that advantage (paired change +0.231 [0.193, 0.267], 16/16), at every
   checkpoint up to 200 trials and with gain matching.
-- **Fragile:** the sign *reversal* under the equal budget. With 16 seeds it is
+- **Fragile:** the apparent sign *reversal* under the equal budget. With 16 seeds it is
   −0.041 [−0.083, +0.011] at trial 60 and −0.055 [−0.100, −0.011] at trial 200;
   with matched spectral radii it is not distinguishable from zero at trial 200.
 - **Mechanism (tentative):** a 16-seed factorial detects no density effect at
@@ -126,3 +136,11 @@ python -m unittest discover -s tests -v
 The [test code](tests/) covers implementation and stored-result consistency;
 passing CI is not independent scientific replication. Rebuilding the full
 experiments is a separate operation, not necessary to read the saved results.
+
+## Licence, attribution and AI use
+
+Code: BSD-3-Clause ([LICENSE](LICENSE)). The model builds on Feulner &
+Clopath (2021) and Neuromatch Academy materials; see
+[THIRD_PARTY.md](THIRD_PARTY.md). Claude Code (an AI coding assistant) helped
+write code and draft text; the numbers were checked against the analysis
+outputs by Thomas Chisica.

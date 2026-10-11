@@ -1,6 +1,8 @@
 cff-version: 1.2.0
 message: "If you use this teaching project, cite the underlying Feulner and Clopath model and this repository."
 title: "NMA Motor-RNN Connectivity"
+authors:
+  - name: "NMA Motor-RNN Connectivity contributors"
 type: software
 version: 0.1.0
 date-released: 2026-07-14
