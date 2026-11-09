@@ -10,11 +10,12 @@ equal-plasticity follow-up by Thomas Chisica. The model builds on the
 Feulner/Clopath implementation and teaching fork credited in the
 [research overview](docs/RESEARCH_OVERVIEW.md); this is not a new learning algorithm.
 
-## Read in five minutes
+## In brief
 
 - **Design:** four densities, eight paired network seeds and held-out evaluation with learning disabled.
 - **Primary result:** denser, all-edges-plastic networks performed better in this experiment.
 - **Control:** that trend did not recur with equal numbers of trainable recurrent edges. Read the [method and results](docs/EQUAL_PLASTICITY_CONTROL.md) before interpreting density as the cause.
+- **Robustness (draft, not peer reviewed):** with 16 seeds, the density advantage disappears under an equal trainable budget (per-seed drop +0.231, 95% CI 0.193 to 0.267, 16 of 16 seeds); the earlier 8-seed sign reversal is small and not robust. The [draft note](https://github.com/Thom-320/nma-motor-rnn-connectivity/blob/robustness-2026-10/paper/NOTE.md) and its runs are on the `robustness-2026-10` branch, not yet merged.
 - **Inspect without retraining:** open the notebook in `view` mode. The primary result and follow-up remain separate, and neither establishes a universal biological effect.
 
 ## The question
@@ -66,7 +67,9 @@ density.
 
 The full method, outputs and analysis boundary are in
 [the equal-plasticity control note](docs/EQUAL_PLASTICITY_CONTROL.md). The
-primary Q2 results above are unchanged.
+primary Q2 results above are unchanged. A 16-seed robustness run, on the
+`robustness-2026-10` branch, supersedes the eight-seed control numbers; see the
+update at the top of the control note.
 
 ## Start here
 
