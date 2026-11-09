@@ -15,7 +15,7 @@ Feulner/Clopath implementation and teaching fork credited in the
 - **Design:** four densities, eight paired network seeds and held-out evaluation with learning disabled.
 - **Primary result:** denser, all-edges-plastic networks performed better in this experiment.
 - **Control:** that trend did not recur with equal numbers of trainable recurrent edges. Read the [method and results](docs/EQUAL_PLASTICITY_CONTROL.md) before interpreting density as the cause.
-- **Robustness (draft, not peer reviewed):** with 16 seeds, the density advantage disappears under an equal trainable budget (per-seed drop +0.231, 95% CI 0.193 to 0.267, 16 of 16 seeds); the earlier 8-seed sign reversal is small and not robust. The [draft note](https://github.com/Thom-320/nma-motor-rnn-connectivity/blob/robustness-2026-10/paper/NOTE.md) and its runs are on the `robustness-2026-10` branch, not yet merged.
+- **Robustness (draft, not peer reviewed):** with 16 seeds at $N=200$, the density advantage (H1: sparse NMSE minus mean denser NMSE) disappears under an equal trainable budget (per-seed drop in H1 +0.231, 95% CI 0.193 to 0.267, positive in 16 of 16 seeds); the earlier 8-seed sign reversal is small and not robust. The [draft note](https://github.com/Thom-320/nma-motor-rnn-connectivity/blob/robustness-2026-10/paper/NOTE.md) and its runs are on the `robustness-2026-10` branch, not yet merged.
 - **Inspect without retraining:** open the notebook in `view` mode. The primary result and follow-up remain separate, and neither establishes a universal biological effect.
 
 ## The question
